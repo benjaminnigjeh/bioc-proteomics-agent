@@ -1,0 +1,30 @@
+.app-footer {
+  padding: 10px 16px;
+  background-color: #fff3cd;
+  color: #664d03;
+  font-size: 0.9rem;
+  text-align: center;
+  border-top: 1px solid #ffe69c;
+}
+
+.status-badge-ok {
+  color: #146c43;
+  font-weight: 600;
+}
+
+.status-badge-warn {
+  color: #b02a37;
+  font-weight: 600;
+}
+
+.trace-table {
+  font-size: 0.85rem;
+}
+
+pre.plan-text {
+  white-space: pre-wrap;
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 12px;
+}

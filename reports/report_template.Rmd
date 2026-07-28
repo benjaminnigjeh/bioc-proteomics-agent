@@ -1,0 +1,195 @@
+---
+title: "Bioconductor Proteomics Agent -- Analysis Report"
+date: "`r format(Sys.time(), '%Y-%m-%d %H:%M:%S %Z')`"
+output:
+  html_document:
+    theme: flatly
+    toc: true
+    toc_float: true
+    self_contained: true
+params:
+  objective: "Not specified"
+  file_meta: NULL
+  qc_metrics: NULL
+  processing_comparison: NULL
+  identification_summary: NULL
+  quantification_summary: NULL
+  plan_text: NULL
+  trace_df: NULL
+  warnings: NULL
+  session_provenance: NULL
+  ai_narrative: NULL
+  llm_mode: "mock"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+`%||%` <- function(a, b) if (is.null(a) || length(a) == 0) b else a
+```
+
+> **Research demonstration only. Not intended for clinical diagnosis or clinical decision-making.**
+
+## Analysis Objective
+
+`r htmltools::htmlEscape(params$objective %||% "Not specified")`
+
+## Source File Metadata
+
+```{r file-meta}
+if (!is.null(params$file_meta)) {
+  knitr::kable(data.frame(
+    field = names(params$file_meta),
+    value = vapply(params$file_meta, function(x) paste(x, collapse = ", "), character(1))
+  ))
+} else {
+  cat("No source file metadata was recorded for this run.")
+}
+```
+
+## Experiment Overview & QC Metrics
+
+```{r qc-table}
+if (!is.null(params$qc_metrics)) {
+  qc <- params$qc_metrics
+  flat <- data.frame(
+    metric = c("Total spectra", "MS1 spectra", "MS2 spectra", "MS2/MS1 ratio",
+               "RT range (s)", "Missing precursor (MS2)", "Empty spectra"),
+    value = c(qc$n_spectra, qc$n_ms1, qc$n_ms2,
+              sprintf("%.3f", qc$ms2_ms1_ratio %||% NA),
+              paste(round(qc$rt_range_s %||% c(NA, NA), 1), collapse = " - "),
+              qc$n_missing_precursor, qc$n_empty_spectra)
+  )
+  knitr::kable(flat)
+} else {
+  cat("QC metrics were not computed for this run.")
+}
+```
+
+### QC Warnings
+
+```{r qc-warnings, results='asis'}
+if (!is.null(params$qc_metrics) && length(params$qc_metrics$warnings) > 0) {
+  cat(paste0("- ", htmltools::htmlEscape(params$qc_metrics$warnings), collapse = "\n"))
+} else {
+  cat("No QC warnings were flagged.")
+}
+```
+
+## Processing: Before / After Comparison
+
+```{r processing-comparison}
+if (!is.null(params$processing_comparison)) {
+  cmp <- params$processing_comparison
+  flat <- data.frame(
+    metric = names(unlist(cmp)),
+    value = unname(unlist(cmp))
+  )
+  knitr::kable(flat)
+} else {
+  cat("No spectrum processing stage was recorded for this run.")
+}
+```
+
+## Identification Summary
+
+```{r ident-summary}
+if (!is.null(params$identification_summary)) {
+  knitr::kable(data.frame(
+    metric = names(params$identification_summary),
+    value = vapply(params$identification_summary, function(x) paste(x, collapse = ", "), character(1))
+  ))
+} else {
+  cat("No PSM identification table was analyzed in this run.")
+}
+```
+
+## Quantification Summary
+
+```{r quant-summary}
+if (!is.null(params$quantification_summary)) {
+  knitr::kable(data.frame(
+    metric = names(params$quantification_summary),
+    value = vapply(params$quantification_summary, function(x) paste(x, collapse = ", "), character(1))
+  ))
+} else {
+  cat("No quantitative abundance table was analyzed in this run.")
+}
+```
+
+## Agent Plan
+
+```{r plan-text, results='asis'}
+if (!is.null(params$plan_text)) {
+  cat(paste0("<pre>", htmltools::htmlEscape(params$plan_text), "</pre>"))
+} else {
+  cat("No plan was recorded for this run.")
+}
+```
+
+## Tool Calls & Agent Trace
+
+```{r trace-table}
+if (!is.null(params$trace_df) && nrow(params$trace_df) > 0) {
+  knitr::kable(params$trace_df[, c("timestamp", "agent", "tool", "status", "duration_s", "output_id")])
+} else {
+  cat("No agent trace was recorded for this run.")
+}
+```
+
+## Warnings
+
+```{r warnings-list, results='asis'}
+if (!is.null(params$warnings) && length(params$warnings) > 0) {
+  cat(paste0("- ", htmltools::htmlEscape(params$warnings), collapse = "\n"))
+} else {
+  cat("No warnings were raised during this run.")
+}
+```
+
+## AI-Assisted Interpretation
+
+**AI-assisted interpretation generated using Claude**
+
+```{r ai-narrative, results='asis'}
+if (identical(params$llm_mode, "mock")) {
+  cat("_Mock mode was active for this run; the text below was produced by the deterministic mock backend, not by Claude._\n\n")
+}
+if (!is.null(params$ai_narrative) && nzchar(params$ai_narrative)) {
+  cat(htmltools::htmlEscape(params$ai_narrative))
+} else {
+  cat("No AI interpretation was generated for this run.")
+}
+```
+
+*The section above is AI-generated narrative interpretation. All figures, tables, and metrics elsewhere in this report were produced by deterministic R/Bioconductor functions, not by the language model.*
+
+## Limitations
+
+- This tool is a research and workshop demonstration. It is not validated for clinical or diagnostic use.
+- Proprietary vendor formats (Thermo RAW, Bruker, SCIEX, Waters) are not read directly; convert to mzML first (e.g. with ProteoWizard `msconvert`).
+- Statistical comparisons are only performed when minimum replicate requirements are met; results with small sample sizes should be interpreted cautiously.
+- AI-assisted interpretation may be incomplete or imprecise; it is grounded in, but not a substitute for, the computed metrics above.
+
+## Package & Session Provenance
+
+```{r provenance}
+sp <- params$session_provenance
+if (!is.null(sp)) {
+  knitr::kable(data.frame(
+    field = c("Generated at", "Git commit SHA", "Bioconductor version", "R version"),
+    value = c(sp$generated_at, sp$git_commit_sha, sp$bioc_version %||% "unknown", sp$r_version)
+  ))
+  cat("\n\n### Key package versions\n\n")
+  knitr::kable(data.frame(package = names(sp$package_versions), version = unlist(sp$package_versions)))
+} else {
+  cat("Session provenance was not recorded.")
+}
+```
+
+```{r session-info}
+if (!is.null(sp$session_info)) {
+  cat(paste0("<details><summary>Full R session info</summary><pre>",
+             htmltools::htmlEscape(sp$session_info), "</pre></details>"))
+}
+```
+

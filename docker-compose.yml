@@ -1,0 +1,18 @@
+services:
+  app:
+    build:
+      context: .
+    ports:
+      - "127.0.0.1:3838:3838"
+    env_file:
+      - .env
+    volumes:
+      - ./local-data:/app/local-data
+      - ./outputs:/app/outputs
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3838/"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
+    restart: unless-stopped

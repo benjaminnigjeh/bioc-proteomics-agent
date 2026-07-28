@@ -1,0 +1,128 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  LLM_MODE: mock
+
+jobs:
+  r-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: "4.4"
+
+      - uses: r-lib/actions/setup-pandoc@v2
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libnetcdf-dev libxml2-dev libssl-dev libcurl4-openssl-dev zlib1g-dev
+
+      - name: Cache R library
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.R_LIBS_USER }}
+          key: r-libs-${{ runner.os }}-${{ hashFiles('scripts/install_packages.R') }}
+          restore-keys: r-libs-${{ runner.os }}-
+
+      - name: Restore / install R dependencies
+        run: Rscript scripts/install_packages.R
+
+      - name: Generate demo data
+        run: Rscript scripts/generate_demo_data.R
+
+      - name: Lint R sources
+        run: |
+          Rscript -e "if (!requireNamespace('lintr', quietly = TRUE)) install.packages('lintr', repos = 'https://cloud.r-project.org')"
+          Rscript -e "lints <- lintr::lint_dir('R'); print(lints); if (length(lints) > 0) quit(status = 0)"
+
+      - name: Run unit tests (mock LLM mode -- no paid API calls)
+        run: LLM_MODE=mock Rscript -e "testthat::test_dir('tests/testthat', stop_on_failure = TRUE)"
+
+      - name: Start Shiny app in mock mode
+        run: |
+          LLM_MODE=mock SHINY_PORT=3838 nohup Rscript scripts/run_app.R > app.log 2>&1 &
+          echo $! > app.pid
+
+      - name: Health check
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3838/ > /dev/null; then
+              echo "App is up."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "App failed to become healthy in time."
+          cat app.log
+          exit 1
+
+      - name: Render a test report
+        run: |
+          Rscript -e "
+            source('R/config.R'); source('R/provenance.R'); source('R/ms_reporting.R')
+            store <- new_provenance_store()
+            provenance_add_entry(store, agent = 'reporting', objective = 'CI smoke test',
+              plan_step = 1, tool = 'generate_report', reason = 'CI', arguments = list(),
+              r_function = 'generate_report', status = 'ok')
+            params <- list(objective = 'CI smoke test', llm_mode = 'mock', trace_df = provenance_as_dataframe(store))
+            out <- generate_report(params, 'outputs')
+            stopifnot(file.exists(out))
+            cat('Rendered report at', out, '\n')
+          "
+
+      - name: Stop Shiny app
+        if: always()
+        run: kill "$(cat app.pid)" 2>/dev/null || true
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    needs: r-tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create .env for the build (no secrets; mock mode)
+        run: |
+          cp .env.example .env
+          sed -i 's/^LLM_MODE=.*/LLM_MODE=mock/' .env
+
+      - name: Build Docker image
+        run: docker compose build
+
+      - name: Start container
+        run: docker compose up -d
+
+      - name: Wait for health check
+        run: |
+          for i in $(seq 1 30); do
+            status=$(docker inspect --format='{{.State.Health.Status}}' $(docker compose ps -q app) 2>/dev/null || echo "starting")
+            if [ "$status" = "healthy" ]; then
+              echo "Container is healthy."
+              break
+            fi
+            sleep 5
+          done
+          docker compose ps
+
+      - name: Verify http://localhost:3838
+        run: curl -fsS http://127.0.0.1:3838/ > /dev/null
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose logs app
+
+      - name: Stop container
+        if: always()
+        run: docker compose down

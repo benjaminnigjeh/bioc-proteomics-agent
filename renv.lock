@@ -1,0 +1,45 @@
+{
+  "R": {
+    "Version": "4.4.1",
+    "Repositories": [
+      { "Name": "CRAN", "URL": "https://cloud.r-project.org" },
+      { "Name": "BioCsoft", "URL": "https://bioconductor.org/packages/3.19/bioc" },
+      { "Name": "BioCann", "URL": "https://bioconductor.org/packages/3.19/data/annotation" },
+      { "Name": "BioCexp", "URL": "https://bioconductor.org/packages/3.19/data/experiment" }
+    ]
+  },
+  "Bioconductor": {
+    "Version": "3.19"
+  },
+  "Packages": {
+    "shiny":                { "Package": "shiny",                "Source": "Repository", "Repository": "CRAN" },
+    "bslib":                 { "Package": "bslib",                 "Source": "Repository", "Repository": "CRAN" },
+    "httr2":                 { "Package": "httr2",                 "Source": "Repository", "Repository": "CRAN" },
+    "jsonlite":               { "Package": "jsonlite",               "Source": "Repository", "Repository": "CRAN" },
+    "digest":                 { "Package": "digest",                 "Source": "Repository", "Repository": "CRAN" },
+    "ggplot2":                { "Package": "ggplot2",                "Source": "Repository", "Repository": "CRAN" },
+    "rmarkdown":              { "Package": "rmarkdown",              "Source": "Repository", "Repository": "CRAN" },
+    "knitr":                  { "Package": "knitr",                  "Source": "Repository", "Repository": "CRAN" },
+    "htmltools":              { "Package": "htmltools",              "Source": "Repository", "Repository": "CRAN" },
+    "testthat":               { "Package": "testthat",               "Source": "Repository", "Repository": "CRAN" },
+    "shinytest2":             { "Package": "shinytest2",             "Source": "Repository", "Repository": "CRAN" },
+    "R.utils":                { "Package": "R.utils",                "Source": "Repository", "Repository": "CRAN" },
+    "later":                  { "Package": "later",                  "Source": "Repository", "Repository": "CRAN" },
+    "DT":                     { "Package": "DT",                     "Source": "Repository", "Repository": "CRAN" },
+    "withr":                  { "Package": "withr",                  "Source": "Repository", "Repository": "CRAN" },
+    "BiocManager":            { "Package": "BiocManager",            "Source": "Repository", "Repository": "CRAN" },
+    "Spectra":                { "Package": "Spectra",                "Source": "Repository", "Repository": "BioCsoft" },
+    "MsExperiment":           { "Package": "MsExperiment",           "Source": "Repository", "Repository": "BioCsoft" },
+    "MsCoreUtils":            { "Package": "MsCoreUtils",            "Source": "Repository", "Repository": "BioCsoft" },
+    "mzR":                    { "Package": "mzR",                    "Source": "Repository", "Repository": "BioCsoft" },
+    "ProtGenerics":           { "Package": "ProtGenerics",           "Source": "Repository", "Repository": "BioCsoft" },
+    "QFeatures":              { "Package": "QFeatures",              "Source": "Repository", "Repository": "BioCsoft" },
+    "SummarizedExperiment":   { "Package": "SummarizedExperiment",   "Source": "Repository", "Repository": "BioCsoft" },
+    "MultiAssayExperiment":   { "Package": "MultiAssayExperiment",   "Source": "Repository", "Repository": "BioCsoft" },
+    "BiocParallel":           { "Package": "BiocParallel",           "Source": "Repository", "Repository": "BioCsoft" },
+    "MsBackendMzR":           { "Package": "MsBackendMzR",           "Source": "Repository", "Repository": "BioCsoft" },
+    "MsBackendMgf":           { "Package": "MsBackendMgf",           "Source": "Repository", "Repository": "BioCsoft" },
+    "PSMatch":                { "Package": "PSMatch",                "Source": "Repository", "Repository": "BioCsoft" },
+    "limma":                  { "Package": "limma",                  "Source": "Repository", "Repository": "BioCsoft" }
+  }
+}

@@ -1,0 +1,7 @@
+sample_id,group,replicate
+Sample_Ctrl_1,Ctrl,1
+Sample_Ctrl_2,Ctrl,2
+Sample_Ctrl_3,Ctrl,3
+Sample_Treat_1,Treat,1
+Sample_Treat_2,Treat,2
+Sample_Treat_3,Treat,3
