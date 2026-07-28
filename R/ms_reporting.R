@@ -13,22 +13,24 @@
 #'   session-scoped)
 #' @param template_path path to the .Rmd template
 #' @export
-generate_report <- function(params, output_dir, template_path = "reports/report_template.Rmd") {
+generate_report <- function(params, output_dir,
+                             template_path = file.path(app_root(), "reports", "report_template.Rmd")) {
   if (!requireNamespace("rmarkdown", quietly = TRUE)) stop("rmarkdown package required.")
   if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
-  out_file <- file.path(output_dir, sprintf("bioc_proteomics_report_%s.html",
-                                             format(Sys.time(), "%Y%m%d_%H%M%S")))
+  out_name <- sprintf("bioc_proteomics_report_%s.html", format(Sys.time(), "%Y%m%d_%H%M%S"))
 
   rmarkdown::render(
     input = template_path,
-    output_file = out_file,
+    output_file = out_name,
+    output_dir = output_dir,
+    intermediates_dir = output_dir,
     params = params,
     envir = new.env(),
     quiet = TRUE
   )
 
-  out_file
+  file.path(output_dir, out_name)
 }
 
 #' Write the QC metrics table to CSV.

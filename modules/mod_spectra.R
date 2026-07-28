@@ -72,7 +72,7 @@ mod_spectra_server <- function(id, shared, ctx) {
       htmltools::tags$p(sprintf("MS level: %s | RT: %.1f s | Precursor m/z: %s | Peaks: %d",
         Spectra::msLevel(one), Spectra::rtime(one),
         tryCatch(round(Spectra::precursorMz(one), 4), error = function(e) "NA"),
-        Spectra::lengths(one)))
+        lengths(one)))
     })
 
     output$tic_plot <- shiny::renderPlot({
@@ -97,7 +97,7 @@ mod_spectra_server <- function(id, shared, ctx) {
         index = seq_len(n),
         ms_level = Spectra::msLevel(sp)[seq_len(n)],
         rtime_s = round(Spectra::rtime(sp)[seq_len(n)], 2),
-        n_peaks = Spectra::lengths(sp)[seq_len(n)]
+        n_peaks = lengths(sp)[seq_len(n)]
       )
     })
   })

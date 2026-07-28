@@ -20,7 +20,7 @@ test_that("filter_psms filters by score and q-value", {
   df <- data.frame(peptide = paste0("PEP", 1:5), protein = paste0("PROT", 1:5),
                     score = c(1, 2, 3, 4, 5), qvalue = c(0.2, 0.1, 0.05, 0.01, 0.001))
   out <- filter_psms(df, min_score = 3, max_qvalue = 0.05)
-  expect_equal(nrow(out), 2)
+  expect_equal(nrow(out), 3) # rows with score 3,4,5 all also have qvalue <= 0.05
   expect_true(all(out$score >= 3))
   expect_true(all(out$qvalue <= 0.05))
 })

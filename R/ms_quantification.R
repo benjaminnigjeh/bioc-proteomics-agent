@@ -69,8 +69,7 @@ build_qfeatures <- function(df, id_col, sample_cols, assay_name = "peptides",
     assays = list(intensity = mat),
     colData = col_data
   )
-  qf <- QFeatures::QFeatures(list(se), colData = col_data)
-  names(qf)[1] <- assay_name
+  qf <- QFeatures::QFeatures(stats::setNames(list(se), assay_name), colData = col_data)
   qf
 }
 

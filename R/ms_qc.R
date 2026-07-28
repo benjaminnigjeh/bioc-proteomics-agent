@@ -47,8 +47,8 @@ calculate_qc_metrics <- function(sp) {
   ratio <- if (n_ms1 > 0) n_ms2 / n_ms1 else NA_real_
 
   rt <- Spectra::rtime(sp)
-  peaks_count <- Spectra::lengths(sp)
-  tic <- Spectra::tic(sp)
+  peaks_count <- lengths(sp)
+  tic <- Spectra::tic(sp, initial = FALSE)
   bpi <- tryCatch(.base_peak_intensity(sp), error = function(e) rep(NA_real_, n))
 
   precursor_mz <- tryCatch(Spectra::precursorMz(sp), error = function(e) rep(NA_real_, n))
@@ -114,7 +114,7 @@ calculate_qc_metrics <- function(sp) {
 plot_tic <- function(sp, ms_level = 1L) {
   if (!requireNamespace("ggplot2", quietly = TRUE)) stop("ggplot2 required for plotting.")
   sub <- sp[Spectra::msLevel(sp) == ms_level]
-  df <- data.frame(rtime = Spectra::rtime(sub), tic = Spectra::tic(sub))
+  df <- data.frame(rtime = Spectra::rtime(sub), tic = Spectra::tic(sub, initial = FALSE))
   df <- df[order(df$rtime), , drop = FALSE]
   ggplot2::ggplot(df, ggplot2::aes(x = .data$rtime, y = .data$tic)) +
     ggplot2::geom_line(color = "#2C6E9A") +

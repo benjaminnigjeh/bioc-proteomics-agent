@@ -72,6 +72,25 @@ redact_secrets <- function(text, cfg = NULL) {
   out
 }
 
+#' Locate the application root directory (the directory containing app.R),
+#' searching upward from the current working directory. This lets code
+#' reference bundled files (like the report template) by a stable path
+#' regardless of the working directory a caller happens to be in --
+#' notably, testthat::test_dir() changes the working directory to
+#' tests/testthat for the duration of a test run.
+#'
+#' @export
+app_root <- function() {
+  dir <- normalizePath(getwd(), winslash = "/")
+  for (i in 1:6) {
+    if (file.exists(file.path(dir, "app.R"))) return(dir)
+    parent <- dirname(dir)
+    if (identical(parent, dir)) break
+    dir <- parent
+  }
+  normalizePath(getwd(), winslash = "/")
+}
+
 #' Bioconductor version string, used for display + report provenance.
 #' @export
 get_bioc_version <- function() {

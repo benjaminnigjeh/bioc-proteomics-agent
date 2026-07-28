@@ -87,13 +87,13 @@ retain_top_peaks <- function(sp, n = 50L) {
 compare_spectra <- function(sp_before, sp_after, label_before = "before", label_after = "after") {
   summarize_one <- function(sp) {
     n <- length(sp)
-    peaks <- Spectra::lengths(sp)
+    peaks <- lengths(sp)
     list(
       n_spectra = n,
       mean_peaks_per_spectrum = if (n > 0) mean(peaks, na.rm = TRUE) else NA_real_,
       median_peaks_per_spectrum = if (n > 0) stats::median(peaks, na.rm = TRUE) else NA_real_,
       total_peaks = if (n > 0) sum(peaks, na.rm = TRUE) else 0L,
-      mean_tic = if (n > 0) mean(Spectra::tic(sp), na.rm = TRUE) else NA_real_
+      mean_tic = if (n > 0) mean(Spectra::tic(sp, initial = FALSE), na.rm = TRUE) else NA_real_
     )
   }
   b <- summarize_one(sp_before)

@@ -168,7 +168,7 @@ register_tool(list(
       ms_level = Spectra::msLevel(sub),
       rtime_s = Spectra::rtime(sub),
       precursor_mz = tryCatch(Spectra::precursorMz(sub), error = function(e) NA_real_),
-      n_peaks = Spectra::lengths(sub)
+      n_peaks = lengths(sub)
     )
     list(output = list(rows = df, n_total = n), output_id = NA_character_, artifacts = character(0), warnings = character(0))
   },

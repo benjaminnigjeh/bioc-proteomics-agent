@@ -24,7 +24,13 @@ test_that("upload size validation rejects oversized files", {
 })
 
 test_that("unsafe filenames are rejected or sanitized", {
-  expect_error(safe_filename("../../etc/passwd"))
+  # basename() strips all directory components (including "../"), so the
+  # sanitized result is a bare filename with no traversal potential left.
+  traversal_result <- safe_filename("../../etc/passwd")
+  expect_false(grepl("/", traversal_result, fixed = TRUE))
+  expect_false(grepl("..", traversal_result, fixed = TRUE))
+  expect_equal(traversal_result, "passwd")
+
   expect_equal(safe_filename("plain_name.mzML"), "plain_name.mzML")
   expect_equal(safe_filename("weird name!@#.mzML"), "weird_name___.mzML")
 })

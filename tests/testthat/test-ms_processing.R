@@ -40,7 +40,7 @@ test_that("normalize_spectra with method='max' scales the base peak to 1", {
 test_that("retain_top_peaks keeps at most N peaks per spectrum", {
   sp <- make_test_spectra()
   top2 <- retain_top_peaks(sp, n = 2L)
-  counts <- Spectra::lengths(top2)
+  counts <- lengths(top2)
   expect_true(all(counts <= 2))
 })
 
