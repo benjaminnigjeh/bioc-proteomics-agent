@@ -80,9 +80,15 @@ mod_agent_server <- function(id, shared, ctx) {
         agent_execute_plan(
           plan = shared$plan, objective = input$objective, mode = shared$cfg$llm_mode,
           cfg = shared$cfg, ctx = ctx, agent_descriptions = AGENT_DESCRIPTIONS,
+          # Note: this callback deliberately does NOT pump later::run_now()
+          # to try to keep the UI "live" during the loop -- doing so
+          # re-enters Shiny's own reactive/message-processing machinery
+          # from inside an already-running handler and risks corrupting the
+          # session. The Stop button and trace table are therefore only
+          # checked/updated once the whole plan run completes; this is
+          # the "best effort" limitation documented in README/SECURITY.
           on_step = function(entry) {
             shared$trace_bump <- shared$trace_bump + 1L
-            if (requireNamespace("later", quietly = TRUE)) later::run_now(timeout = 0.05)
           },
           stop_check = function() isTRUE(shiny::isolate(shared$stop_requested))
         )

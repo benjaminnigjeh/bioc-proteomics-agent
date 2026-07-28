@@ -17,36 +17,43 @@ test_that("end-to-end: demo data -> QC -> mock plan -> execute -> report", {
 
   app <- tryCatch(
     shinytest2::AppDriver$new(app_dir = app_dir, name = "bpa-e2e",
-                               timeout = 30000, load_timeout = 90000, height = 1000, width = 1400),
+                               timeout = 60000, load_timeout = 90000, height = 1000, width = 1400),
     error = function(e) NULL
   )
   testthat::skip_if(is.null(app), "No headless Chrome/Chromium session available for shinytest2.")
   withr::defer(app$stop())
 
+  # Demo-data import (mzML + PSM + abundance tables + checksums) is the
+  # slowest step in a headless/test-mode session; give it a generous budget.
   app$click(selector = "#home-load_demo")
-  app$wait_for_idle(timeout = 20000)
+  app$wait_for_idle(timeout = 60000)
 
   app$click(selector = "a[data-value='Quality Control']")
+  app$wait_for_idle(timeout = 10000)
   app$click(selector = "#qc-run_qc")
-  app$wait_for_idle(timeout = 20000)
+  app$wait_for_idle(timeout = 30000)
   qc_summary <- app$get_text("#qc-qc_summary")
   expect_match(qc_summary, "Total spectra")
 
   app$click(selector = "a[data-value='Agent Workspace']")
+  app$wait_for_idle(timeout = 10000)
   app$set_inputs(`agent-objective` = "Inspect this run, evaluate QC, and prepare a reproducible report.")
   app$click(selector = "#agent-create_plan")
-  app$wait_for_idle(timeout = 15000)
+  app$wait_for_idle(timeout = 20000)
   plan_text <- app$get_text("#agent-plan_ui")
   expect_match(plan_text, "Plan for objective")
 
+  # The mock plan's steps include generate_report(), which renders the full
+  # R Markdown report -- allow a generous budget for the whole sequence.
   app$click(selector = "#agent-run_plan")
-  app$wait_for_idle(timeout = 30000)
+  app$wait_for_idle(timeout = 90000)
   status_text <- app$get_text("#agent-agent_status")
   expect_match(status_text, "complete")
 
   app$click(selector = "a[data-value='Report']")
+  app$wait_for_idle(timeout = 10000)
   app$click(selector = "#report-generate")
-  app$wait_for_idle(timeout = 30000)
+  app$wait_for_idle(timeout = 40000)
   report_status <- app$get_text("#report-status")
   expect_match(report_status, "successfully")
 })

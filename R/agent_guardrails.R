@@ -37,7 +37,12 @@ schema_check <- function(args, schema) {
   args <- args %||% list()
   required <- unlist(schema$required %||% list())
   for (r in required) {
-    if (is.null(args[[r]]) || (is.character(args[[r]]) && !nzchar(args[[r]]))) {
+    v <- args[[r]]
+    # The empty-string check only makes sense for scalar string arguments;
+    # array-typed required arguments (e.g. sample_cols) are legitimately
+    # length > 1, and must not be run through nzchar()/&& as if scalar.
+    is_empty_string <- is.character(v) && length(v) == 1 && !nzchar(v)
+    if (is.null(v) || is_empty_string) {
       errors <- c(errors, sprintf("Missing required argument '%s'.", r))
     }
   }

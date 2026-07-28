@@ -38,7 +38,7 @@ mod_home_ui <- function(id) {
 
 mod_home_server <- function(id, shared, ctx) {
   shiny::moduleServer(id, function(input, output, session) {
-    conn_status <- shiny::reactiveVal(claude_connection_status(shared$cfg, probe = FALSE))
+    conn_status <- shiny::reactiveVal(shiny::isolate(claude_connection_status(shared$cfg, probe = FALSE)))
 
     shiny::observeEvent(input$check_connection, {
       shiny::withProgress(message = "Checking Claude connectivity...", {

@@ -68,12 +68,16 @@ server <- function(input, output, session) {
     stop_requested = FALSE
   )
 
-  ctx <- new_session_ctx(
+  # shared$store / shared$uploads_env are set once above and never change
+  # again for the life of the session, so isolate() is safe here -- this
+  # is a one-time read at session start, outside any reactive consumer,
+  # which reactiveValues otherwise forbids.
+  ctx <- shiny::isolate(new_session_ctx(
     store = shared$store,
     session_dir = session_dir,
     uploads_env = shared$uploads_env,
     report_params_builder = function(objective) build_report_params(shared, objective)
-  )
+  ))
 
   shiny::onSessionEnded(function() {
     cleanup_session_dir(session_dir)
