@@ -40,10 +40,9 @@ import_ms_file <- function(path, original_filename) {
   ext <- file_extension(original_filename)
 
   sp <- if (ext %in% c("mzml", "mzxml")) {
-    if (!requireNamespace("MsBackendMzR", quietly = TRUE)) {
-      stop("The 'MsBackendMzR' package is required to import mzML/mzXML files.")
-    }
-    Spectra::Spectra(path, source = MsBackendMzR::MsBackendMzR())
+    # MsBackendMzR is a backend class exported directly by the Spectra
+    # package itself (not a separate installable package).
+    Spectra::Spectra(path, source = Spectra::MsBackendMzR())
   } else if (ext == "mgf") {
     if (!requireNamespace("MsBackendMgf", quietly = TRUE)) {
       stop("The 'MsBackendMgf' package is required to import MGF files.")

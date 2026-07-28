@@ -37,7 +37,6 @@
     "SummarizedExperiment":   { "Package": "SummarizedExperiment",   "Source": "Repository", "Repository": "BioCsoft" },
     "MultiAssayExperiment":   { "Package": "MultiAssayExperiment",   "Source": "Repository", "Repository": "BioCsoft" },
     "BiocParallel":           { "Package": "BiocParallel",           "Source": "Repository", "Repository": "BioCsoft" },
-    "MsBackendMzR":           { "Package": "MsBackendMzR",           "Source": "Repository", "Repository": "BioCsoft" },
     "MsBackendMgf":           { "Package": "MsBackendMgf",           "Source": "Repository", "Repository": "BioCsoft" },
     "PSMatch":                { "Package": "PSMatch",                "Source": "Repository", "Repository": "BioCsoft" },
     "limma":                  { "Package": "limma",                  "Source": "Repository", "Repository": "BioCsoft" }

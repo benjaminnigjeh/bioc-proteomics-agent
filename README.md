@@ -93,7 +93,8 @@ reads environment variables, and never gets direct file-system access. See
 
 Core: `Spectra`, `MsExperiment`, `MsCoreUtils`, `mzR`, `ProtGenerics`,
 `QFeatures`, `SummarizedExperiment`, `MultiAssayExperiment`, `BiocParallel`.
-Also used: `MsBackendMzR`, `MsBackendMgf`, `PSMatch`, `limma`.
+Also used: `MsBackendMgf`, `PSMatch`, `limma` (mzML/mzXML import uses the
+`MsBackendMzR` backend class that ships inside `Spectra` itself).
 
 `Spectra` is the canonical spectrum abstraction and `MsExperiment` the
 canonical experiment container throughout the app; `QFeatures` is the

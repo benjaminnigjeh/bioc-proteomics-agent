@@ -27,7 +27,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            libnetcdf-dev libxml2-dev libssl-dev libcurl4-openssl-dev zlib1g-dev
+            libnetcdf-dev libxml2-dev libssl-dev libcurl4-openssl-dev zlib1g-dev libglpk-dev
 
       - name: Cache R library
         uses: actions/cache@v4

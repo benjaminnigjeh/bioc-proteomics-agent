@@ -2,8 +2,9 @@
 # scripts/generate_demo_data.R
 #
 # Regenerates the small demo dataset bundled in inst/extdata/. The mzML
-# file is produced with Spectra + MsBackendMzR so it round-trips through
-# exactly the library the app itself uses to read spectra back. The CSV
+# file is produced with Spectra's built-in MsBackendMzR backend so it
+# round-trips through exactly the library the app itself uses to read
+# spectra back. The CSV
 # tables use a fixed deterministic formula (no RNG), so re-running this
 # script reproduces the same CSV content already checked into the repo.
 #
@@ -13,7 +14,7 @@
 
 set.seed(1)
 
-required_pkgs <- c("Spectra", "MsBackendMzR", "S4Vectors")
+required_pkgs <- c("Spectra", "S4Vectors")
 missing_pkgs <- required_pkgs[!vapply(required_pkgs, requireNamespace, logical(1), quietly = TRUE)]
 if (length(missing_pkgs) > 0) {
   stop("Missing required package(s): ", paste(missing_pkgs, collapse = ", "),
@@ -66,12 +67,12 @@ spd$intensity <- peaks_int
 sp <- Spectra::Spectra(spd)
 
 mzml_path <- file.path(out_dir, "demo_lcmsms.mzML")
-Spectra::export(sp, MsBackendMzR::MsBackendMzR(), file = mzml_path, format = "mzML")
+Spectra::export(sp, Spectra::MsBackendMzR(), file = mzml_path, format = "mzML")
 
 # Self-check: fail loudly (non-zero exit) if the written file does not
 # read back with the expected spectrum count, rather than shipping a
 # silently broken demo file.
-check <- Spectra::Spectra(mzml_path, source = MsBackendMzR::MsBackendMzR())
+check <- Spectra::Spectra(mzml_path, source = Spectra::MsBackendMzR())
 if (length(check) != length(sp)) {
   stop(sprintf("Demo mzML self-check failed: wrote %d spectra but read back %d.", length(sp), length(check)))
 }
