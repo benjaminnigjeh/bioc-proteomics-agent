@@ -178,10 +178,49 @@ headless Chrome is available in the environment).
 
 ## CI/CD
 
-`.github/workflows/ci.yml` runs unit tests, lints `R/`, boots the app in
-mock mode with a health check, renders a test report, then builds and
-boots the Docker image and verifies `http://localhost:3838`. CI never
-requires or uses `ANTHROPIC_API_KEY`.
+**CI** (`.github/workflows/ci.yml`, every push/PR to `main`) runs unit
+tests, lints `R/`, boots the app in mock mode with a health check, renders
+a test report, then builds and boots the Docker image and verifies
+`http://localhost:3838`. CI never requires or uses `ANTHROPIC_API_KEY`.
+
+**CD** (`.github/workflows/release.yml`, only on version tags `vX.Y.Z`)
+runs the full test suite again, builds the image, smoke-tests it (boot +
+health check + `curl localhost:3838`), then publishes it to Docker Hub as
+`<DOCKERHUB_USERNAME>/bioc-proteomics-agent:<version>` and `:latest`.
+This **never deploys the app anywhere** -- it only publishes the image for
+someone to pull and run on their own localhost, consistent with the
+localhost-only design. Ordinary commits to `main` publish nothing.
+
+One-time setup (repo owner only): add two repository secrets under
+**Settings -> Secrets and variables -> Actions**:
+
+| Secret | Value |
+|---|---|
+| `DOCKERHUB_USERNAME` | Your Docker Hub username |
+| `DOCKERHUB_TOKEN` | A Docker Hub **access token** (Docker Hub -> Account Settings -> Security -> New Access Token) -- not your account password |
+
+Or via the CLI:
+
+```bash
+gh secret set DOCKERHUB_USERNAME --repo <owner>/bioc-proteomics-agent
+gh secret set DOCKERHUB_TOKEN --repo <owner>/bioc-proteomics-agent
+```
+
+To cut a release once secrets are configured:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+Anyone can then run the published image directly, without cloning or
+building:
+
+```bash
+docker pull <DOCKERHUB_USERNAME>/bioc-proteomics-agent:latest
+docker run -d --name bpa -p 127.0.0.1:3838:3838 --env-file .env \
+  <DOCKERHUB_USERNAME>/bioc-proteomics-agent:latest
+```
 
 ## Repository layout
 
