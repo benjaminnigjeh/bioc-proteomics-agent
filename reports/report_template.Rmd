@@ -11,9 +11,11 @@ params:
   objective: "Not specified"
   file_meta: NULL
   qc_metrics: NULL
+  msquality_metrics: NULL
   processing_comparison: NULL
   identification_summary: NULL
   quantification_summary: NULL
+  msstats_summary: NULL
   plan_text: NULL
   trace_df: NULL
   warnings: NULL
@@ -75,6 +77,20 @@ if (!is.null(params$qc_metrics) && length(params$qc_metrics$warnings) > 0) {
 }
 ```
 
+### Standardized QC Metrics (MsQuality)
+
+```{r msquality-table}
+if (!is.null(params$msquality_metrics) && length(params$msquality_metrics) > 0) {
+  m <- params$msquality_metrics
+  knitr::kable(data.frame(
+    metric = names(m),
+    value = vapply(m, function(x) paste(format(x, digits = 4), collapse = ", "), character(1))
+  ))
+} else {
+  cat("Standardized (MsQuality) QC metrics were not computed for this run.")
+}
+```
+
 ## Processing: Before / After Comparison
 
 ```{r processing-comparison}
@@ -113,6 +129,19 @@ if (!is.null(params$quantification_summary)) {
   ))
 } else {
   cat("No quantitative abundance table was analyzed in this run.")
+}
+```
+
+### Statistical Comparison (MSstats)
+
+```{r msstats-summary}
+if (!is.null(params$msstats_summary)) {
+  knitr::kable(data.frame(
+    metric = names(params$msstats_summary),
+    value = vapply(params$msstats_summary, function(x) paste(x, collapse = ", "), character(1))
+  ))
+} else {
+  cat("No MSstats comparison was run for this session.")
 }
 ```
 

@@ -208,13 +208,15 @@ agent_execute_plan <- function(plan, objective, mode, cfg, ctx, agent_descriptio
   m <- list(
     inspect_uploaded_file = "data_intake", import_ms_file = "data_intake", summarize_experiment = "data_intake",
     list_spectra = "data_intake", get_spectrum = "data_intake",
-    calculate_qc_metrics = "qc", plot_tic = "qc", plot_bpc = "qc", plot_spectrum = "qc",
+    calculate_qc_metrics = "qc", calculate_standardized_qc_metrics = "qc",
+    plot_tic = "qc", plot_bpc = "qc", plot_spectrum = "qc",
     filter_spectra = "spectrum_processing", normalize_spectra = "spectrum_processing",
     retain_top_peaks = "spectrum_processing", compare_spectra = "spectrum_processing",
     import_psm_table = "identification", filter_psms = "identification", summarize_identifications = "identification",
     import_quant_table = "quantification", build_qfeatures = "quantification",
     normalize_quantification = "quantification", aggregate_to_proteins = "quantification",
-    run_exploratory_analysis = "quantification",
+    run_exploratory_analysis = "quantification", plot_quantification_heatmap = "quantification",
+    import_sample_metadata = "quantification", run_msstats_comparison = "quantification",
     generate_report = "reporting"
   )
   m[[tool_name]] %||% "supervisor"

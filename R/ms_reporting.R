@@ -88,9 +88,11 @@ build_report_params <- function(shared, objective) {
     objective = objective %||% "Not specified",
     file_meta = shared$file_meta,
     qc_metrics = shared$qc_metrics,
+    msquality_metrics = shared$msquality_metrics,
     processing_comparison = shared$processing_comparison,
     identification_summary = shared$ident_summary,
     quantification_summary = shared$quant_summary,
+    msstats_summary = shared$msstats_summary,
     plan_text = if (!is.null(shared$plan)) shared$plan$plan_text else NULL,
     trace_df = provenance_as_dataframe(shared$store),
     warnings = unique(c(shared$qc_metrics$warnings)),
@@ -109,7 +111,8 @@ collect_session_provenance <- function() {
   }, error = function(e) "unknown")
 
   pkgs <- c("Spectra", "MsExperiment", "MsCoreUtils", "mzR", "ProtGenerics",
-            "QFeatures", "SummarizedExperiment", "MultiAssayExperiment", "BiocParallel")
+            "QFeatures", "SummarizedExperiment", "MultiAssayExperiment", "BiocParallel",
+            "MsQuality", "MSstats", "ComplexHeatmap")
   pkg_versions <- lapply(pkgs, function(p) {
     tryCatch(as.character(utils::packageVersion(p)), error = function(e) "not installed")
   })

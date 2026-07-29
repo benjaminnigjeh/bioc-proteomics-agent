@@ -182,3 +182,118 @@ run_two_group_comparison <- function(qf, assay_name, group) {
   res$adj.P.Val <- stats::p.adjust(res$p.value, method = "BH")
   list(ok = TRUE, method = "welch_t_test", results = res)
 }
+
+#' Heatmap of a QFeatures assay (ComplexHeatmap), restricted to
+#' complete-case features so the clustering isn't disrupted by NAs.
+#'
+#' @param qf a QFeatures object
+#' @param assay_name character
+#' @param scale whether to z-score each feature (row) before plotting
+#' @export
+plot_quant_heatmap <- function(qf, assay_name, scale = TRUE) {
+  if (!requireNamespace("ComplexHeatmap", quietly = TRUE)) stop("ComplexHeatmap package required.")
+  mat <- SummarizedExperiment::assay(qf[[assay_name]])
+  mat <- mat[stats::complete.cases(mat), , drop = FALSE]
+  if (nrow(mat) == 0) stop("No complete-case features available for a heatmap.")
+  if (isTRUE(scale) && nrow(mat) > 1) mat <- t(scale(t(mat)))
+  ComplexHeatmap::Heatmap(mat, name = if (isTRUE(scale)) "z-score" else "abundance",
+                           show_row_names = nrow(mat) <= 50, column_title = sprintf("Assay: %s", assay_name))
+}
+
+#' Validate a sample metadata table: requires a `sample_id` column, at
+#' least one other (grouping) column, and no duplicate sample ids.
+#'
+#' @param df data.frame as imported
+#' @export
+validate_sample_metadata <- function(df) {
+  errors <- character(0)
+  if (!"sample_id" %in% colnames(df)) {
+    errors <- c(errors, "Sample metadata must have a 'sample_id' column.")
+  }
+  other_cols <- setdiff(colnames(df), "sample_id")
+  if (length(other_cols) == 0) {
+    errors <- c(errors, "Sample metadata must have at least one column besides 'sample_id' (e.g. a group/condition column).")
+  }
+  if ("sample_id" %in% colnames(df) && anyDuplicated(df$sample_id) > 0 && length(errors) == 0) {
+    errors <- c(errors, "Duplicate sample_id values found in sample metadata.")
+  }
+  list(ok = length(errors) == 0, errors = errors)
+}
+
+#' Run a real MSstats differential-abundance comparison between exactly two
+#' conditions. Unlike the QFeatures-based `run_two_group_comparison()`
+#' above, this operates on the *raw* wide abundance table directly (before
+#' any QFeatures aggregation), since MSstats performs its own run-level
+#' summarization (Tukey median polish) from replicate-level measurements.
+#' Each row of the wide table (protein_col/peptide_col combination) is
+#' treated as a single MSstats "feature" -- this input shape has no
+#' fragment-ion-level granularity to offer MSstats, which is a legitimate,
+#' commonly-used simplification for already peptide/protein-summarized
+#' input (feature count of 1 per protein-run just skips feature-level
+#' summarization).
+#'
+#' @param df the raw wide abundance table (as from `import_quant_table()`)
+#' @param protein_col character column name identifying the protein
+#' @param peptide_col character column name identifying the feature/peptide
+#' @param sample_cols character vector of sample column names to compare
+#' @param sample_metadata data.frame with `sample_id` + a group column
+#' @param group_col character name of the grouping column in sample_metadata
+#' @export
+run_msstats_comparison <- function(df, protein_col, peptide_col, sample_cols, sample_metadata, group_col) {
+  if (!requireNamespace("MSstats", quietly = TRUE)) stop("MSstats package required.")
+  if (!group_col %in% colnames(sample_metadata)) {
+    return(list(ok = FALSE, reason = sprintf("Group column '%s' not found in sample metadata.", group_col)))
+  }
+  meta_matched <- sample_metadata[match(sample_cols, sample_metadata$sample_id), , drop = FALSE]
+  if (anyNA(meta_matched$sample_id)) {
+    return(list(ok = FALSE, reason = "One or more sample columns have no matching row in sample metadata."))
+  }
+  group <- factor(meta_matched[[group_col]])
+  if (nlevels(group) != 2) {
+    return(list(ok = FALSE, reason = "MSstats comparison requires exactly two groups."))
+  }
+  if (any(table(group) < 2)) {
+    return(list(ok = FALSE, reason = "Each group needs at least 2 replicates for a valid comparison."))
+  }
+
+  long <- do.call(rbind, lapply(seq_along(sample_cols), function(i) {
+    sc <- sample_cols[i]
+    data.frame(
+      ProteinName = df[[protein_col]],
+      PeptideSequence = df[[peptide_col]],
+      PrecursorCharge = 2L,
+      FragmentIon = NA_character_,
+      ProductCharge = NA_integer_,
+      IsotopeLabelType = "L",
+      Condition = as.character(group[i]),
+      BioReplicate = sc,
+      Run = sc,
+      Intensity = df[[sc]]
+    )
+  }))
+
+  dp <- tryCatch(
+    MSstats::dataProcess(long, use_log_file = FALSE, verbose = FALSE),
+    error = function(e) e
+  )
+  if (inherits(dp, "error")) {
+    return(list(ok = FALSE, reason = paste("MSstats dataProcess failed:", conditionMessage(dp))))
+  }
+
+  groups <- levels(group)
+  contrast.matrix <- matrix(c(1, -1), nrow = 1)
+  rownames(contrast.matrix) <- paste(groups, collapse = "-")
+  colnames(contrast.matrix) <- groups
+
+  gc <- tryCatch(
+    MSstats::groupComparison(contrast.matrix = contrast.matrix, data = dp, use_log_file = FALSE, verbose = FALSE),
+    error = function(e) e
+  )
+  if (inherits(gc, "error")) {
+    return(list(ok = FALSE, reason = paste("MSstats groupComparison failed:", conditionMessage(gc))))
+  }
+
+  results <- gc$ComparisonResult
+  results <- results[order(results$adj.pvalue), , drop = FALSE]
+  list(ok = TRUE, method = "MSstats_TMP", results = results)
+}

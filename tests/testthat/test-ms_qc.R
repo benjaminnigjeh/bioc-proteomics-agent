@@ -21,3 +21,14 @@ test_that("calculate_qc_metrics handles an empty Spectra object without erroring
   expect_equal(qc$n_spectra, 0)
   expect_true(any(grepl("HIGH", qc$warnings)))
 })
+
+test_that("calculate_msquality_metrics returns a non-empty named list of standardized metrics", {
+  skip_if_not_installed("MsQuality")
+  sp <- make_test_spectra()
+  m <- calculate_msquality_metrics(sp)
+  expect_true(is.list(m))
+  expect_true(length(m) > 0)
+  expect_true(!is.null(names(m)) && all(nzchar(names(m))))
+  expect_true("numberSpectra" %in% names(m))
+  expect_true(is.numeric(m[["numberSpectra"]]))
+})

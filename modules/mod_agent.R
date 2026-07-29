@@ -116,6 +116,9 @@ mod_agent_server <- function(id, shared, ctx) {
         sp <- if (!is.null(shared$spectra_id)) provenance_get_object(shared$store, shared$spectra_id) else NULL
         if (!is.null(sp)) shared$qc_metrics <- calculate_qc_metrics(sp)
       }
+      if (!is.null(result$results[["calculate_standardized_qc_metrics"]])) {
+        shared$msquality_metrics <- result$results[["calculate_standardized_qc_metrics"]]
+      }
       if (length(result$results[["filter_spectra"]]) > 0) {
         shared$processing_comparison <- result$results[["filter_spectra"]]$comparison
         shared$processing_stage_id <- result$results[["filter_spectra"]]$stage_id
@@ -161,6 +164,15 @@ mod_agent_server <- function(id, shared, ctx) {
         shared$quant_summary <- list(
           assay = shared$quant_assay_name, pca_ok = isTRUE(re$pca$ok),
           comparison_ok = isTRUE(re$comparison$ok %||% FALSE)
+        )
+      }
+      if (!is.null(result$results[["import_sample_metadata"]]$metadata_id)) {
+        shared$quant_metadata_id <- result$results[["import_sample_metadata"]]$metadata_id
+      }
+      if (!is.null(result$results[["run_msstats_comparison"]])) {
+        rm_ <- result$results[["run_msstats_comparison"]]
+        shared$msstats_summary <- list(
+          method = rm_$method, n_proteins = rm_$n_proteins, n_significant_padj05 = rm_$n_significant_padj05
         )
       }
     })
@@ -209,6 +221,8 @@ mod_agent_server <- function(id, shared, ctx) {
     source_filename = shared$source_filename,
     has_psm = !is.null(shared$psm_id), psm_id = shared$psm_id,
     has_quant = !is.null(shared$quant_table_id), quant_table_id = shared$quant_table_id,
-    quant_id_col = shared$quant_id_col, quant_sample_cols = shared$quant_sample_cols
+    quant_id_col = shared$quant_id_col, quant_sample_cols = shared$quant_sample_cols,
+    has_sample_metadata = !is.null(shared$quant_metadata_id), quant_metadata_id = shared$quant_metadata_id,
+    qfeatures_id = shared$qfeatures_id, quant_assay_name = shared$quant_assay_name
   )
 }

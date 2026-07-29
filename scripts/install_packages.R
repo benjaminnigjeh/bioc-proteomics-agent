@@ -23,7 +23,7 @@ bioc_pkgs <- c(
   # itself, not a separate installable package -- do not add it here.
   "Spectra", "MsExperiment", "MsCoreUtils", "mzR", "ProtGenerics",
   "QFeatures", "SummarizedExperiment", "MultiAssayExperiment", "BiocParallel",
-  "MsBackendMgf", "PSMatch", "limma"
+  "MsBackendMgf", "PSMatch", "limma", "MsQuality", "MSstats", "ComplexHeatmap"
 )
 
 to_install_cran <- cran_pkgs[!vapply(cran_pkgs, requireNamespace, logical(1), quietly = TRUE)]

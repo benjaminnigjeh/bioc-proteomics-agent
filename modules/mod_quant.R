@@ -13,6 +13,9 @@ mod_quant_ui <- function(id) {
       bslib::card_body(
         shiny::fileInput(ns("file"), "Upload abundance table (CSV/TSV)", accept = c(".csv", ".tsv", ".txt")),
         shiny::uiOutput(ns("validation_msg")),
+        shiny::fileInput(ns("metadata_file"), "Upload sample metadata (CSV, optional -- needs 'sample_id' + a group column)",
+                          accept = c(".csv", ".tsv", ".txt")),
+        shiny::uiOutput(ns("metadata_validation_msg")),
         htmltools::tags$hr(),
         shiny::selectInput(ns("id_col"), "Identifier column", choices = NULL),
         shiny::selectInput(ns("sample_cols"), "Sample columns", choices = NULL, multiple = TRUE),
@@ -26,7 +29,11 @@ mod_quant_ui <- function(id) {
         shiny::actionButton(ns("run_aggregate"), "Aggregate to Proteins"),
         htmltools::tags$hr(),
         shiny::selectInput(ns("group_col"), "Group column for comparison", choices = NULL),
-        shiny::actionButton(ns("run_pca_btn"), "Run PCA / Comparison", class = "btn-secondary")
+        shiny::actionButton(ns("run_pca_btn"), "Run PCA / Comparison", class = "btn-secondary"),
+        htmltools::tags$hr(),
+        htmltools::tags$p(htmltools::tags$strong("Statistical Comparison (MSstats)")),
+        shiny::selectInput(ns("msstats_protein_col"), "Protein id column", choices = NULL),
+        shiny::actionButton(ns("run_msstats_btn"), "Run MSstats Comparison", class = "btn-secondary")
       )
     ),
     bslib::card(
@@ -36,7 +43,13 @@ mod_quant_ui <- function(id) {
         htmltools::tags$hr(),
         shiny::plotOutput(ns("pca_plot")),
         htmltools::tags$hr(),
-        shiny::tableOutput(ns("comparison_table"))
+        shiny::plotOutput(ns("heatmap_plot")),
+        htmltools::tags$hr(),
+        shiny::tableOutput(ns("comparison_table")),
+        htmltools::tags$hr(),
+        htmltools::tags$p(htmltools::tags$strong("MSstats Comparison Result")),
+        shiny::uiOutput(ns("msstats_summary_ui")),
+        shiny::tableOutput(ns("msstats_table"))
       )
     )
   )
@@ -53,6 +66,10 @@ mod_quant_server <- function(id, shared, ctx) {
     cmp_res <- shiny::reactiveVal(NULL)
     synced_table_id <- shiny::reactiveVal(NULL)
     synced_qfeatures_id <- shiny::reactiveVal(NULL)
+    synced_metadata_id <- shiny::reactiveVal(NULL)
+    msstats_res <- shiny::reactiveVal(NULL)
+
+    .default_protein_col <- function(cols, id_col) if ("protein" %in% cols) "protein" else id_col
 
     # shared$quant_table_id / shared$qfeatures_id are set not just by this
     # panel's own upload/build actions, but also by Home's "Load Demo Data"
@@ -71,6 +88,23 @@ mod_quant_server <- function(id, shared, ctx) {
         sample_cols <- shared$quant_sample_cols %||% character(0)
         shiny::updateSelectInput(session, "id_col", choices = colnames(df), selected = id_col)
         shiny::updateSelectInput(session, "sample_cols", choices = colnames(df), selected = sample_cols)
+        shiny::updateSelectInput(session, "msstats_protein_col", choices = colnames(df),
+                                  selected = .default_protein_col(colnames(df), id_col))
+      }
+    }, ignoreNULL = TRUE)
+
+    # shared$quant_metadata_id is set not just by this panel's own metadata
+    # upload, but also by the Agent Workspace's import_sample_metadata tool
+    # calls -- without this, a sample metadata table imported by the agent
+    # wouldn't be usable for a manually-triggered MSstats run.
+    shiny::observeEvent(shared$quant_metadata_id, {
+      metadata_id <- shared$quant_metadata_id
+      shiny::req(metadata_id)
+      if (identical(metadata_id, synced_metadata_id())) return(invisible(NULL))
+      meta <- provenance_get_object(shared$store, metadata_id)
+      if (!is.null(meta)) {
+        sample_meta(meta)
+        synced_metadata_id(metadata_id)
       }
     }, ignoreNULL = TRUE)
 
@@ -111,6 +145,8 @@ mod_quant_server <- function(id, shared, ctx) {
         synced_table_id(table_id)
         shiny::updateSelectInput(session, "id_col", choices = colnames(df), selected = v$id_col)
         shiny::updateSelectInput(session, "sample_cols", choices = v$sample_cols, selected = v$sample_cols)
+        shiny::updateSelectInput(session, "msstats_protein_col", choices = colnames(df),
+                                  selected = .default_protein_col(colnames(df), v$id_col))
         provenance_add_entry(shared$store, agent = "quantification", objective = "Manual quant upload",
           plan_step = NA_integer_, tool = "import_quant_table", reason = "User uploaded an abundance table.",
           arguments = list(file = f$name), r_function = "import_quant_table", output_id = table_id, status = "ok")
@@ -123,10 +159,43 @@ mod_quant_server <- function(id, shared, ctx) {
       })
     })
 
+    shiny::observeEvent(input$metadata_file, {
+      f <- input$metadata_file
+      val <- validate_table_upload(f$name, f$size, shared$cfg$max_upload_mb)
+      if (!val$ok) {
+        output$metadata_validation_msg <- shiny::renderUI(htmltools::tags$p(class = "status-badge-warn", val$reason))
+        return(invisible(NULL))
+      }
+      dest <- file.path(shared$session_dir, val$safe_name)
+      file.copy(f$datapath, dest, overwrite = TRUE)
+      assert_within_dir(dest, shared$session_dir)
+
+      result <- tryCatch({
+        df <- utils::read.csv(dest, stringsAsFactors = FALSE, check.names = FALSE)
+        v <- validate_sample_metadata(df)
+        if (!v$ok) stop(paste(v$errors, collapse = " "))
+        metadata_id <- paste0("samplemeta_", safe_filename(tools::file_path_sans_ext(f$name)))
+        provenance_put_object(shared$store, metadata_id, df)
+        shared$quant_metadata_id <- metadata_id
+        sample_meta(df)
+        synced_metadata_id(metadata_id)
+        provenance_add_entry(shared$store, agent = "quantification", objective = "Manual sample metadata upload",
+          plan_step = NA_integer_, tool = "import_sample_metadata", reason = "User uploaded sample metadata.",
+          arguments = list(file = f$name), r_function = "import_sample_metadata", output_id = metadata_id, status = "ok")
+        list(ok = TRUE, n_rows = nrow(df))
+      }, error = function(e) list(ok = FALSE, message = conditionMessage(e)))
+
+      output$metadata_validation_msg <- shiny::renderUI({
+        if (isTRUE(result$ok)) htmltools::tags$p(class = "status-badge-ok", sprintf("Imported %d sample metadata rows.", result$n_rows))
+        else htmltools::tags$p(class = "status-badge-warn", paste("Metadata import failed:", result$message))
+      })
+    })
+
     shiny::observeEvent(input$build_qf, {
       shiny::req(raw_df(), input$id_col, input$sample_cols)
       result <- tryCatch({
-        qf <- build_qfeatures(raw_df(), input$id_col, input$sample_cols, assay_name = "peptides")
+        qf <- build_qfeatures(raw_df(), input$id_col, input$sample_cols, assay_name = "peptides",
+                               sample_metadata = sample_meta())
         qf_id <- paste0(shared$quant_table_id, "_qf")
         provenance_put_object(shared$store, qf_id, qf)
         shared$qfeatures_id <- qf_id
@@ -220,6 +289,25 @@ mod_quant_server <- function(id, shared, ctx) {
         warnings = if (!isTRUE(p$ok)) p$reason else character(0))
     })
 
+    shiny::observeEvent(input$run_msstats_btn, {
+      shiny::req(raw_df(), input$id_col, input$sample_cols, input$msstats_protein_col, sample_meta())
+      shiny::validate(shiny::need(nzchar(input$group_col %||% ""), "Select a group column first (build QFeatures with sample metadata to populate it)."))
+      res <- run_msstats_comparison(raw_df(), input$msstats_protein_col, input$id_col, input$sample_cols,
+                                     sample_meta(), input$group_col)
+      msstats_res(res)
+      if (isTRUE(res$ok)) {
+        shared$msstats_summary <- list(
+          method = res$method, n_proteins = nrow(res$results),
+          n_significant_padj05 = sum(res$results$adj.pvalue < 0.05, na.rm = TRUE)
+        )
+      }
+      provenance_add_entry(shared$store, agent = "quantification", objective = "Manual MSstats comparison",
+        plan_step = NA_integer_, tool = "run_msstats_comparison", reason = "User clicked Run MSstats Comparison.",
+        arguments = list(protein_col = input$msstats_protein_col, id_col = input$id_col, group_col = input$group_col),
+        r_function = "run_msstats_comparison", status = if (isTRUE(res$ok)) "ok" else "error",
+        warnings = if (!isTRUE(res$ok)) res$reason else character(0))
+    })
+
     output$missingness_ui <- shiny::renderUI({
       shiny::req(qf_obj(), active_assay())
       m <- summarize_missingness(qf_obj(), active_assay())
@@ -243,6 +331,29 @@ mod_quant_server <- function(id, shared, ctx) {
       cmp <- cmp_res()
       shiny::req(cmp, isTRUE(cmp$ok))
       utils::head(cmp$results[order(cmp$results$p.value), ], 50)
+    })
+
+    output$heatmap_plot <- shiny::renderPlot({
+      input$run_pca_btn
+      shiny::req(qf_obj(), active_assay())
+      ht <- tryCatch(plot_quant_heatmap(qf_obj(), active_assay()), error = function(e) NULL)
+      shiny::req(ht)
+      ComplexHeatmap::draw(ht)
+    })
+
+    output$msstats_summary_ui <- shiny::renderUI({
+      res <- msstats_res()
+      shiny::req(res)
+      if (!isTRUE(res$ok)) return(htmltools::tags$p(class = "status-badge-warn", paste("MSstats comparison failed:", res$reason)))
+      n_sig <- sum(res$results$adj.pvalue < 0.05, na.rm = TRUE)
+      htmltools::tags$p(class = "status-badge-ok",
+                         sprintf("%s | %d proteins compared, %d significant (adj. p < 0.05).", res$method, nrow(res$results), n_sig))
+    })
+
+    output$msstats_table <- shiny::renderTable({
+      res <- msstats_res()
+      shiny::req(res, isTRUE(res$ok))
+      utils::head(res$results, 50)
     })
   })
 }

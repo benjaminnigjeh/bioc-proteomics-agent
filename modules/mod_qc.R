@@ -19,6 +19,13 @@ mod_qc_ui <- function(id) {
       bslib::card_header("QC Warnings"),
       bslib::card_body(shiny::uiOutput(ns("qc_warnings")))
     ),
+    bslib::card(
+      bslib::card_header("Standardized QC Metrics (MsQuality)"),
+      bslib::card_body(
+        shiny::actionButton(ns("run_msquality"), "Run MsQuality Metrics", class = "btn-outline-secondary"),
+        shiny::uiOutput(ns("msquality_ui"))
+      )
+    ),
     bslib::layout_columns(
       col_widths = c(6, 6),
       bslib::card(bslib::card_header("TIC (MS1)"), shiny::plotOutput(ns("tic_plot"))),
@@ -66,6 +73,32 @@ mod_qc_server <- function(id, shared, ctx) {
       htmltools::tags$table(class = "table table-sm",
         htmltools::tags$tbody(lapply(rows, function(r) htmltools::tags$tr(
           htmltools::tags$td(htmltools::tags$strong(r[1])), htmltools::tags$td(as.character(r[2]))))))
+    })
+
+    shiny::observeEvent(input$run_msquality, {
+      shiny::req(shared$spectra_id)
+      sp <- provenance_get_object(shared$store, shared$spectra_id)
+      shiny::withProgress(message = "Calculating standardized QC metrics (MsQuality)...", {
+        t0 <- Sys.time()
+        m <- calculate_msquality_metrics(sp)
+        shared$msquality_metrics <- m
+        provenance_add_entry(shared$store, agent = "qc", objective = "Manual MsQuality run",
+          plan_step = NA_integer_, tool = "calculate_standardized_qc_metrics", reason = "User clicked Run MsQuality Metrics.",
+          arguments = list(spectra_id = shared$spectra_id), r_function = "calculate_msquality_metrics",
+          input_id = shared$spectra_id, status = "ok",
+          duration_s = as.numeric(difftime(Sys.time(), t0, units = "secs")))
+      })
+    })
+
+    output$msquality_ui <- shiny::renderUI({
+      shiny::req(shared$msquality_metrics)
+      m <- shared$msquality_metrics
+      rows <- lapply(names(m), function(nm) {
+        v <- m[[nm]]
+        htmltools::tags$tr(htmltools::tags$td(htmltools::tags$strong(nm)),
+                            htmltools::tags$td(if (is.numeric(v)) format(v, digits = 4) else as.character(v)))
+      })
+      htmltools::tags$table(class = "table table-sm", htmltools::tags$tbody(rows))
     })
 
     output$qc_warnings <- shiny::renderUI({

@@ -109,6 +109,25 @@ calculate_qc_metrics <- function(sp) {
   )
 }
 
+#' Standardized, HUPO-PSI/mzQC-aligned QC metrics via the MsQuality package
+#' -- complementary to (not a replacement for) `calculate_qc_metrics()`
+#' above. MsQuality's metric set skews MS2/precursor-focused (elution
+#' quartiles, precursor intensity/charge distributions, acquisition
+#' ranges) rather than the severity-tagged empty/missing-precursor checks
+#' `calculate_qc_metrics()` already covers.
+#'
+#' @param sp a Spectra object
+#' @return a flat named list of metric name -> numeric value
+#' @export
+calculate_msquality_metrics <- function(sp) {
+  if (!requireNamespace("MsQuality", quietly = TRUE)) stop("MsQuality package required.")
+  qm <- MsQuality::qualityMetrics(sp)
+  res <- MsQuality::calculateMetricsFromSpectra(
+    sp, metrics = qm, f = rep("all", length(sp)), BPPARAM = BiocParallel::SerialParam()
+  )
+  as.list(res[1, ])
+}
+
 #' Shared dark plot theme matching the app's "AI operations console" look,
 #' so chromatogram/spectrum plots sit visually inside their dark cards
 #' instead of rendering as bright white rectangles.

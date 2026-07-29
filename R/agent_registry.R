@@ -233,6 +233,25 @@ register_tool(list(
   expected_artifacts = character(0)
 ))
 
+register_tool(list(
+  name = "calculate_standardized_qc_metrics",
+  description = "Calculate standardized, HUPO-PSI/mzQC-aligned QC metrics (MsQuality package): chromatographic elution, precursor intensity/charge distributions, acquisition ranges. Complementary to calculate_qc_metrics, not a replacement.",
+  input_schema = list(
+    type = "object",
+    properties = list(spectra_id = list(type = "string")),
+    required = list("spectra_id")
+  ),
+  validate = function(args, ctx) list(ok = TRUE, errors = character(0), args = args),
+  execute = function(args, ctx) {
+    sp <- .resolve_object(ctx, args$spectra_id, "Spectra")
+    m <- calculate_msquality_metrics(sp)
+    list(output = m, output_id = NA_character_, artifacts = character(0), warnings = character(0))
+  },
+  output_schema = list(type = "object"),
+  timeout_s = 60,
+  expected_artifacts = character(0)
+))
+
 .plot_tool <- function(name, description, plot_fn, extra_props = list(), extra_required = list()) {
   register_tool(list(
     name = name,
@@ -580,6 +599,85 @@ register_tool(list(
   },
   output_schema = list(type = "object"),
   timeout_s = 60,
+  expected_artifacts = character(0)
+))
+
+register_tool(list(
+  name = "plot_quantification_heatmap",
+  description = "Generate a heatmap of a QFeatures assay (ComplexHeatmap), restricted to complete-case features.",
+  input_schema = list(
+    type = "object",
+    properties = list(qfeatures_id = list(type = "string"), assay_name = list(type = "string")),
+    required = list("qfeatures_id", "assay_name")
+  ),
+  validate = function(args, ctx) list(ok = TRUE, errors = character(0), args = args),
+  execute = function(args, ctx) {
+    qf <- .resolve_object(ctx, args$qfeatures_id, "QFeatures")
+    ht <- plot_quant_heatmap(qf, args$assay_name)
+    art_id <- .new_id("plot_heatmap")
+    path <- file.path(ctx$session_dir, paste0(art_id, ".png"))
+    grDevices::png(path, width = 900, height = 700, res = 120)
+    ComplexHeatmap::draw(ht)
+    grDevices::dev.off()
+    list(output = list(artifact_path = path), output_id = NA_character_,
+         artifacts = path, warnings = character(0))
+  },
+  output_schema = list(type = "object"),
+  timeout_s = 60,
+  expected_artifacts = "png"
+))
+
+register_tool(list(
+  name = "import_sample_metadata",
+  description = "Import and validate a sample metadata table (CSV/TSV) with a 'sample_id' column and at least one grouping column (e.g. condition).",
+  input_schema = list(
+    type = "object",
+    properties = list(file_id = list(type = "string")),
+    required = list("file_id")
+  ),
+  validate = function(args, ctx) list(ok = TRUE, errors = character(0), args = args),
+  execute = function(args, ctx) {
+    rec <- ctx$get_upload(args$file_id)
+    if (is.null(rec)) stop("Unknown file_id.")
+    df <- utils::read.csv(rec$path, stringsAsFactors = FALSE, check.names = FALSE)
+    val <- validate_sample_metadata(df)
+    if (!val$ok) stop(paste(val$errors, collapse = " "))
+    metadata_id <- .new_id("samplemeta")
+    provenance_put_object(ctx$store, metadata_id, df)
+    list(output = list(metadata_id = metadata_id, columns = colnames(df), n_rows = nrow(df)),
+         output_id = metadata_id, artifacts = character(0), warnings = character(0))
+  },
+  output_schema = list(type = "object"),
+  timeout_s = 30,
+  expected_artifacts = character(0)
+))
+
+register_tool(list(
+  name = "run_msstats_comparison",
+  description = "Run a real MSstats differential-abundance comparison between exactly two conditions, using per-sample Condition metadata from a previously imported sample metadata table.",
+  input_schema = list(
+    type = "object",
+    properties = list(
+      table_id = list(type = "string"), protein_col = list(type = "string"),
+      peptide_col = list(type = "string"), sample_cols = list(type = "array", items = list(type = "string")),
+      metadata_id = list(type = "string"), group_col = list(type = "string")
+    ),
+    required = list("table_id", "protein_col", "peptide_col", "sample_cols", "metadata_id", "group_col")
+  ),
+  validate = function(args, ctx) list(ok = TRUE, errors = character(0), args = args),
+  execute = function(args, ctx) {
+    df <- .resolve_object(ctx, args$table_id, "data.frame")
+    meta <- .resolve_object(ctx, args$metadata_id, "data.frame")
+    res <- run_msstats_comparison(df, args$protein_col, args$peptide_col, unlist(args$sample_cols), meta, args$group_col)
+    if (!isTRUE(res$ok)) stop(res$reason)
+    result_id <- .new_id("msstats")
+    provenance_put_object(ctx$store, result_id, res$results)
+    list(output = list(result_id = result_id, method = res$method, n_proteins = nrow(res$results),
+                        n_significant_padj05 = sum(res$results$adj.pvalue < 0.05, na.rm = TRUE)),
+         output_id = result_id, artifacts = character(0), warnings = character(0))
+  },
+  output_schema = list(type = "object"),
+  timeout_s = 120,
   expected_artifacts = character(0)
 ))
 
