@@ -51,6 +51,43 @@ mod_quant_server <- function(id, shared, ctx) {
     active_assay <- shiny::reactiveVal(NULL)
     pca_res <- shiny::reactiveVal(NULL)
     cmp_res <- shiny::reactiveVal(NULL)
+    synced_table_id <- shiny::reactiveVal(NULL)
+    synced_qfeatures_id <- shiny::reactiveVal(NULL)
+
+    # shared$quant_table_id / shared$qfeatures_id are set not just by this
+    # panel's own upload/build actions, but also by Home's "Load Demo Data"
+    # and by the Agent Workspace's quantification tool calls -- without
+    # this, the tab stays empty after either of those even though a table
+    # or QFeatures object genuinely exists in the session.
+    shiny::observeEvent(shared$quant_table_id, {
+      table_id <- shared$quant_table_id
+      shiny::req(table_id)
+      if (identical(table_id, synced_table_id())) return(invisible(NULL))
+      df <- provenance_get_object(shared$store, table_id)
+      if (!is.null(df)) {
+        raw_df(df)
+        synced_table_id(table_id)
+        id_col <- shared$quant_id_col %||% colnames(df)[1]
+        sample_cols <- shared$quant_sample_cols %||% character(0)
+        shiny::updateSelectInput(session, "id_col", choices = colnames(df), selected = id_col)
+        shiny::updateSelectInput(session, "sample_cols", choices = colnames(df), selected = sample_cols)
+      }
+    }, ignoreNULL = TRUE)
+
+    shiny::observeEvent(shared$qfeatures_id, {
+      qfeatures_id <- shared$qfeatures_id
+      shiny::req(qfeatures_id)
+      if (identical(qfeatures_id, synced_qfeatures_id())) return(invisible(NULL))
+      qf <- provenance_get_object(shared$store, qfeatures_id)
+      assay_name <- shared$quant_assay_name
+      if (!is.null(qf) && !is.null(assay_name) && assay_name %in% names(qf)) {
+        qf_obj(qf)
+        active_assay(assay_name)
+        synced_qfeatures_id(qfeatures_id)
+        cd <- as.data.frame(SummarizedExperiment::colData(qf[[assay_name]]))
+        shiny::updateSelectInput(session, "group_col", choices = colnames(cd))
+      }
+    }, ignoreNULL = TRUE)
 
     shiny::observeEvent(input$file, {
       f <- input$file
@@ -71,6 +108,7 @@ mod_quant_server <- function(id, shared, ctx) {
         provenance_put_object(shared$store, table_id, df)
         shared$quant_table_id <- table_id
         raw_df(df)
+        synced_table_id(table_id)
         shiny::updateSelectInput(session, "id_col", choices = colnames(df), selected = v$id_col)
         shiny::updateSelectInput(session, "sample_cols", choices = v$sample_cols, selected = v$sample_cols)
         provenance_add_entry(shared$store, agent = "quantification", objective = "Manual quant upload",
@@ -97,6 +135,7 @@ mod_quant_server <- function(id, shared, ctx) {
         shared$quant_assay_name <- "peptides"
         qf_obj(qf)
         active_assay("peptides")
+        synced_qfeatures_id(qf_id)
         cd <- as.data.frame(SummarizedExperiment::colData(qf[["peptides"]]))
         shiny::updateSelectInput(session, "group_col", choices = colnames(cd))
         provenance_add_entry(shared$store, agent = "quantification", objective = "Manual QFeatures build",
@@ -122,6 +161,8 @@ mod_quant_server <- function(id, shared, ctx) {
         qf_id <- paste0(shared$qfeatures_id, "_norm")
         provenance_put_object(shared$store, qf_id, qf)
         shared$qfeatures_id <- qf_id
+        shared$quant_assay_name <- norm_assay
+        synced_qfeatures_id(qf_id)
         provenance_add_entry(shared$store, agent = "quantification", objective = "Manual transform/normalize",
           plan_step = NA_integer_, tool = "normalize_quantification", reason = "User clicked Transform & Normalize.",
           arguments = list(method = input$norm_method), r_function = "normalize_quantification",
@@ -143,6 +184,8 @@ mod_quant_server <- function(id, shared, ctx) {
         qf_id <- paste0(shared$qfeatures_id, "_prot")
         provenance_put_object(shared$store, qf_id, qf)
         shared$qfeatures_id <- qf_id
+        shared$quant_assay_name <- new_assay
+        synced_qfeatures_id(qf_id)
         provenance_add_entry(shared$store, agent = "quantification", objective = "Manual aggregation",
           plan_step = NA_integer_, tool = "aggregate_to_proteins", reason = "User clicked Aggregate to Proteins.",
           arguments = list(fcol = input$fcol), r_function = "aggregate_to_proteins", output_id = qf_id, status = "ok")

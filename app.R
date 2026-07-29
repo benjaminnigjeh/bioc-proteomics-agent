@@ -53,6 +53,12 @@ ui <- bslib::page_navbar(
   ),
   id = "main_nav",
   theme = app_theme,
+  # bslib's default `fillable = TRUE` locks the body to 100vh and hands
+  # scrolling to individual panels instead of the page itself, which is
+  # what made tall tabs (e.g. Agent Workspace) feel "jammed" into a fixed
+  # viewport with inner scrollbars. `fillable = FALSE` restores normal
+  # document flow so the whole page scrolls.
+  fillable = FALSE,
   header = htmltools::tags$head(
     htmltools::tags$link(rel = "stylesheet", type = "text/css", href = "custom.css"),
     htmltools::tags$meta(name = "color-scheme", content = "dark")

@@ -9,38 +9,50 @@ DEFAULT_OBJECTIVE <- paste(
   "compare the data before and after processing, and prepare a reproducible report."
 )
 
+# Single, full-width vertical flow rather than a cramped side-by-side
+# grid: each stage of the loop (objective -> plan -> run -> trace ->
+# warnings -> interpretation) gets its own generously-sized, full-width
+# section, and the page scrolls naturally instead of packing everything
+# into fixed-height boxes with their own inner scrollbars.
 mod_agent_ui <- function(id) {
   ns <- shiny::NS(id)
-  bslib::layout_columns(
-    col_widths = c(4, 8),
+  htmltools::tagList(
     bslib::card(
-      bslib::card_header("Objective"),
+      class = "mb-3",
+      bslib::card_header(htmltools::tags$span(htmltools::tags$i(class = "fa-solid fa-bullseye me-2"), "1. Objective")),
       bslib::card_body(
-        shiny::textAreaInput(ns("objective"), "Analysis objective", value = DEFAULT_OBJECTIVE, rows = 5),
-        shiny::actionButton(ns("create_plan"), "Create Plan", class = "btn-primary"),
-        shiny::actionButton(ns("run_plan"), "Run Plan", class = "btn-success"),
-        shiny::actionButton(ns("stop_plan"), "Stop", class = "btn-outline-danger"),
+        shiny::textAreaInput(ns("objective"), "Analysis objective", value = DEFAULT_OBJECTIVE, rows = 4, width = "100%"),
+        htmltools::tags$div(
+          class = "d-flex gap-2 flex-wrap",
+          shiny::actionButton(ns("create_plan"), htmltools::tagList(htmltools::tags$i(class = "fa-solid fa-diagram-project"), " Create Plan"), class = "btn-primary"),
+          shiny::actionButton(ns("run_plan"), htmltools::tagList(htmltools::tags$i(class = "fa-solid fa-play"), " Run Plan"), class = "btn-success"),
+          shiny::actionButton(ns("stop_plan"), htmltools::tagList(htmltools::tags$i(class = "fa-solid fa-stop"), " Stop"), class = "btn-outline-danger")
+        ),
         htmltools::tags$hr(),
         shiny::uiOutput(ns("agent_status"))
       )
     ),
     bslib::card(
-      bslib::card_header("Plan"),
+      class = "mb-3",
+      bslib::card_header(htmltools::tags$span(htmltools::tags$i(class = "fa-solid fa-map me-2"), "2. Plan")),
       bslib::card_body(shiny::uiOutput(ns("plan_ui")))
     ),
     bslib::card(
-      bslib::card_header("Agent Trace"),
+      class = "mb-3",
+      bslib::card_header(htmltools::tags$span(htmltools::tags$i(class = "fa-solid fa-list-check me-2"), "3. Agent Trace")),
       bslib::card_body(
-        shiny::tableOutput(ns("trace_table")),
-        shiny::downloadButton(ns("download_trace"), "Download Trace CSV")
+        shiny::downloadButton(ns("download_trace"), htmltools::tagList(htmltools::tags$i(class = "fa-solid fa-download"), " Download Trace CSV"), class = "btn-outline-secondary btn-sm mb-3"),
+        htmltools::tags$div(class = "table-responsive", shiny::tableOutput(ns("trace_table")))
       )
     ),
     bslib::card(
-      bslib::card_header("Warnings"),
+      class = "mb-3",
+      bslib::card_header(htmltools::tags$span(htmltools::tags$i(class = "fa-solid fa-triangle-exclamation me-2"), "4. Warnings")),
       bslib::card_body(shiny::uiOutput(ns("warnings_ui")))
     ),
     bslib::card(
-      bslib::card_header("Claude-Assisted Interpretation"),
+      class = "mb-3",
+      bslib::card_header(htmltools::tags$span(htmltools::tags$i(class = "fa-solid fa-comment-dots me-2"), "5. Claude-Assisted Interpretation")),
       bslib::card_body(shiny::uiOutput(ns("narrative_ui")))
     )
   )
@@ -80,6 +92,7 @@ mod_agent_server <- function(id, shared, ctx) {
         agent_execute_plan(
           plan = shared$plan, objective = input$objective, mode = shared$cfg$llm_mode,
           cfg = shared$cfg, ctx = ctx, agent_descriptions = AGENT_DESCRIPTIONS,
+          available = .build_available_context(shared),
           # Note: this callback deliberately does NOT pump later::run_now()
           # to try to keep the UI "live" during the loop -- doing so
           # re-enters Shiny's own reactive/message-processing machinery
@@ -99,7 +112,6 @@ mod_agent_server <- function(id, shared, ctx) {
       run_status(result$status)
 
       qc_step <- Filter(function(e) identical(e$tool, "calculate_qc_metrics"), result$trace)
-      cmp_step <- Filter(function(e) identical(e$tool, "compare_spectra") || identical(e$tool, "filter_spectra"), result$trace)
       if (length(qc_step) > 0 && is.null(shared$qc_metrics)) {
         sp <- if (!is.null(shared$spectra_id)) provenance_get_object(shared$store, shared$spectra_id) else NULL
         if (!is.null(sp)) shared$qc_metrics <- calculate_qc_metrics(sp)
@@ -107,6 +119,49 @@ mod_agent_server <- function(id, shared, ctx) {
       if (length(result$results[["filter_spectra"]]) > 0) {
         shared$processing_comparison <- result$results[["filter_spectra"]]$comparison
         shared$processing_stage_id <- result$results[["filter_spectra"]]$stage_id
+      }
+
+      # Propagate identification/quantification results so the
+      # Identifications and Quantification tabs (which display shared
+      # session state, not agent internals) reflect what the agent just
+      # did -- this applies to both mock and Claude-driven runs.
+      if (!is.null(result$results[["import_psm_table"]]$psm_id)) {
+        shared$psm_id <- result$results[["import_psm_table"]]$psm_id
+      }
+      if (!is.null(result$results[["filter_psms"]]$stage_id)) {
+        shared$psm_id <- result$results[["filter_psms"]]$stage_id
+      }
+      if (!is.null(result$results[["summarize_identifications"]])) {
+        si <- result$results[["summarize_identifications"]]
+        shared$ident_summary <- si[intersect(names(si), c("n_psm", "n_unique_peptides", "n_unique_proteins", "median_psms_per_protein"))]
+      }
+      if (!is.null(result$results[["import_quant_table"]]$table_id)) {
+        iq <- result$results[["import_quant_table"]]
+        shared$quant_table_id <- iq$table_id
+        shared$quant_id_col <- iq$id_col
+        shared$quant_sample_cols <- unlist(iq$sample_cols)
+      }
+      if (!is.null(result$results[["build_qfeatures"]]$qfeatures_id)) {
+        bq <- result$results[["build_qfeatures"]]
+        shared$qfeatures_id <- bq$qfeatures_id
+        shared$quant_assay_name <- bq$assay_name
+      }
+      if (!is.null(result$results[["normalize_quantification"]]$qfeatures_id)) {
+        nq <- result$results[["normalize_quantification"]]
+        shared$qfeatures_id <- nq$qfeatures_id
+        shared$quant_assay_name <- nq$new_assay
+      }
+      if (!is.null(result$results[["aggregate_to_proteins"]]$qfeatures_id)) {
+        ap <- result$results[["aggregate_to_proteins"]]
+        shared$qfeatures_id <- ap$qfeatures_id
+        shared$quant_assay_name <- ap$new_assay
+      }
+      if (!is.null(result$results[["run_exploratory_analysis"]])) {
+        re <- result$results[["run_exploratory_analysis"]]
+        shared$quant_summary <- list(
+          assay = shared$quant_assay_name, pca_ok = isTRUE(re$pca$ok),
+          comparison_ok = isTRUE(re$comparison$ok %||% FALSE)
+        )
       }
     })
 

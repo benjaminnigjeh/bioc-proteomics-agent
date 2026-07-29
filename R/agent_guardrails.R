@@ -140,8 +140,15 @@ guardrail_execute_call <- function(tool, args, ctx) {
 #' as a guardrail warning, not a hard block, since prose legitimately
 #' contains numbers (step counts, dates) unrelated to results.
 #'
+#' `results` is the same tool-name -> output list agent_execution.R
+#' accumulates in `state$results` during the run. Provenance entries only
+#' log tool call *arguments* (e.g. spectra_id), not computed *outputs* --
+#' many tools (e.g. calculate_qc_metrics) never persist their numeric
+#' results as a stored object at all, so scanning `store` alone left this
+#' check unable to ever find real computed numbers to compare against.
+#'
 #' @export
-verify_narrative_grounding <- function(narrative, store) {
+verify_narrative_grounding <- function(narrative, store, results = list()) {
   if (is.null(narrative) || !nzchar(narrative)) return(list(ok = TRUE, warnings = character(0)))
   narrative_nums <- unique(as.numeric(regmatches(narrative, gregexpr("[0-9]+\\.?[0-9]*", narrative))[[1]]))
   narrative_nums <- narrative_nums[!is.na(narrative_nums)]
@@ -150,6 +157,8 @@ verify_narrative_grounding <- function(narrative, store) {
   computed_text <- paste(vapply(store$entries, function(e) {
     tryCatch(paste(unlist(e$arguments), collapse = " "), error = function(e) "")
   }, character(1)), collapse = " ")
+  results_text <- tryCatch(paste(unlist(results), collapse = " "), error = function(e) "")
+  computed_text <- paste(computed_text, results_text)
   computed_nums <- unique(as.numeric(regmatches(computed_text, gregexpr("[0-9]+\\.?[0-9]*", computed_text))[[1]]))
   computed_nums <- computed_nums[!is.na(computed_nums)]
 

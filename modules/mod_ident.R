@@ -38,6 +38,23 @@ mod_ident_server <- function(id, shared, ctx) {
 
     raw_df <- shiny::reactiveVal(NULL)
     filtered_df <- shiny::reactiveVal(NULL)
+    synced_psm_id <- shiny::reactiveVal(NULL)
+
+    # shared$psm_id is set not just by this panel's own upload, but also by
+    # Home's "Load Demo Data" and by the Agent Workspace's identification
+    # tool calls -- without this, the tab stays empty after either of those
+    # even though a PSM table genuinely exists in the session.
+    shiny::observeEvent(shared$psm_id, {
+      psm_id <- shared$psm_id
+      shiny::req(psm_id)
+      if (identical(psm_id, synced_psm_id())) return(invisible(NULL))
+      df <- provenance_get_object(shared$store, psm_id)
+      if (!is.null(df)) {
+        raw_df(df)
+        filtered_df(df)
+        synced_psm_id(psm_id)
+      }
+    }, ignoreNULL = TRUE)
 
     shiny::observeEvent(input$file, {
       f <- input$file
@@ -60,6 +77,7 @@ mod_ident_server <- function(id, shared, ctx) {
         shared$psm_column_map <- v$column_map
         raw_df(v$mapped_df)
         filtered_df(v$mapped_df)
+        synced_psm_id(psm_id)
         provenance_add_entry(shared$store, agent = "identification", objective = "Manual PSM upload",
           plan_step = NA_integer_, tool = "import_psm_table", reason = "User uploaded a PSM table.",
           arguments = list(file = f$name), r_function = "import_psm_table", output_id = psm_id, status = "ok")

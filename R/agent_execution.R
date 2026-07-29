@@ -23,7 +23,20 @@ agent_create_plan <- function(objective, mode, cfg, available, agent_description
 }
 
 #' Initialize the execution state shared by both backends.
-.new_agent_state <- function(objective, plan, system_prompt) {
+#'
+#' `available` (the same session-context list passed to `agent_create_plan`)
+#' is embedded in the first user message so the execution loop actually
+#' knows the IDs (spectra_id, psm_id, ...) it can call tools against --
+#' `agent_create_plan` sees `available` for planning, but without this the
+#' execution loop would only ever see the free-text objective and have no
+#' grounded way to reference already-loaded data.
+.new_agent_state <- function(objective, plan, system_prompt, available = NULL) {
+  context_block <- if (!is.null(available)) {
+    paste0("\n\nSession context (already available, do not re-derive; use these IDs directly in tool arguments):\n",
+           jsonlite::toJSON(available, auto_unbox = TRUE, null = "null"))
+  } else {
+    ""
+  }
   list(
     objective = objective,
     plan = plan,
@@ -31,8 +44,8 @@ agent_create_plan <- function(objective, mode, cfg, available, agent_description
     outputs = list(),
     results = list(),
     messages = list(list(role = "user", content = sprintf(
-      "Objective: %s\n\nExecute this objective step by step using only the registered tools. After each tool result, decide the next justified tool call, or provide a final grounded summary when the objective is satisfied.",
-      objective
+      "Objective: %s%s\n\nExecute this objective step by step using only the registered tools. After each tool result, decide the next justified tool call, or provide a final grounded summary when the objective is satisfied.",
+      objective, context_block
     ))),
     system_prompt = system_prompt,
     trace = list(),
@@ -50,20 +63,23 @@ agent_create_plan <- function(objective, mode, cfg, available, agent_description
 #' @param cfg validated app config
 #' @param ctx session execution context (see agent_supervisor.R:new_session_ctx)
 #' @param agent_descriptions named list, agent name -> description
+#' @param available optional session-context list (same shape passed to
+#'   agent_create_plan) so the execution loop knows the actual IDs
+#'   (spectra_id, psm_id, ...) it can call tools against
 #' @param on_step optional function(trace_entry) called after each step for
 #'   live UI updates
 #' @param stop_check optional function() -> logical, checked each iteration
 #'   to support the "Stop" button
 #' @export
 agent_execute_plan <- function(plan, objective, mode, cfg, ctx, agent_descriptions,
-                                on_step = NULL, stop_check = NULL) {
+                                available = NULL, on_step = NULL, stop_check = NULL) {
   if (!is.null(plan$error)) {
     return(list(status = "error", error = plan$error, trace = list(), final_text = NULL))
   }
 
   tools_meta <- list_tools_for_claude()
   system_prompt <- .build_system_prompt(agent_descriptions)
-  state <- .new_agent_state(objective, plan, system_prompt)
+  state <- .new_agent_state(objective, plan, system_prompt, available)
 
   max_steps <- cfg$max_agent_steps
   step_i <- 0L
@@ -95,7 +111,7 @@ agent_execute_plan <- function(plan, objective, mode, cfg, ctx, agent_descriptio
     }
 
     if (identical(action$type, "final")) {
-      grounding <- verify_narrative_grounding(action$text, ctx$store)
+      grounding <- verify_narrative_grounding(action$text, ctx$store, state$results)
       state$final_text <- action$text
       state$warnings <- c(state$warnings, grounding$warnings)
       state$status <- "complete"
@@ -141,10 +157,16 @@ agent_execute_plan <- function(plan, objective, mode, cfg, ctx, agent_descriptio
     state$trace[[length(state$trace) + 1]] <- entry
     if (!is.null(on_step)) on_step(entry)
 
+    # Record outputs/results for BOTH backends -- not just mock -- so the
+    # UI can sync tab state (identification/quantification/etc.) from a
+    # real Claude-driven run exactly the same way it does from mock runs.
+    if (exec_res$ok) {
+      state$outputs[[action$tool]] <- exec_res$output_id
+      state$results[[action$tool]] <- exec_res$output
+    }
+
     if (mode == "mock") {
       if (exec_res$ok) {
-        state$outputs[[action$tool]] <- exec_res$output_id
-        state$results[[action$tool]] <- exec_res$output
         state$cursor <- state$cursor + 1L
       } else {
         state$status <- "error"
