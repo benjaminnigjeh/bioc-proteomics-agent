@@ -16,6 +16,12 @@ assert_registry_is_safe()
 
 cfg <- validate_app_config(get_app_config())
 
+# Shiny's own upload gate defaults to 5MB regardless of what fileInput()
+# allows or what our own MAX_UPLOAD_MB-driven validate_*_upload() checks
+# permit -- without this, real (multi-MB) MS files are silently rejected
+# by Shiny itself before our validation ever runs.
+options(shiny.maxRequestSize = cfg$max_upload_mb * 1024^2)
+
 # A dark, "AI operations console" theme: near-black base, cyan/violet
 # accent pair, a geometric display face for headings and a monospace face
 # for code/trace/log-style content -- layered with www/custom.css for the

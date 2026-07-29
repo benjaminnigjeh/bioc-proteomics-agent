@@ -109,6 +109,30 @@ calculate_qc_metrics <- function(sp) {
   )
 }
 
+#' Shared dark plot theme matching the app's "AI operations console" look,
+#' so chromatogram/spectrum plots sit visually inside their dark cards
+#' instead of rendering as bright white rectangles.
+#' @export
+theme_bpa_dark <- function() {
+  panel_bg <- "#0b0f1a"
+  grid_col <- "#1c2436"
+  text_col <- "#b8c4d9"
+  title_col <- "#dbe4f0"
+  ggplot2::theme_minimal(base_size = 12) +
+    ggplot2::theme(
+      plot.background   = ggplot2::element_rect(fill = panel_bg, color = NA),
+      panel.background  = ggplot2::element_rect(fill = panel_bg, color = NA),
+      panel.grid.major  = ggplot2::element_line(color = grid_col, linewidth = 0.4),
+      panel.grid.minor  = ggplot2::element_line(color = grid_col, linewidth = 0.2),
+      axis.text         = ggplot2::element_text(color = text_col),
+      axis.title        = ggplot2::element_text(color = text_col),
+      plot.title        = ggplot2::element_text(color = title_col, face = "bold"),
+      legend.background = ggplot2::element_rect(fill = panel_bg, color = NA),
+      legend.text       = ggplot2::element_text(color = text_col),
+      legend.title      = ggplot2::element_text(color = text_col)
+    )
+}
+
 #' Total ion chromatogram plot (ggplot2), MS1 by default.
 #' @export
 plot_tic <- function(sp, ms_level = 1L) {
@@ -117,10 +141,10 @@ plot_tic <- function(sp, ms_level = 1L) {
   df <- data.frame(rtime = Spectra::rtime(sub), tic = Spectra::tic(sub, initial = FALSE))
   df <- df[order(df$rtime), , drop = FALSE]
   ggplot2::ggplot(df, ggplot2::aes(x = .data$rtime, y = .data$tic)) +
-    ggplot2::geom_line(color = "#2C6E9A") +
+    ggplot2::geom_line(color = "#22d3ee", linewidth = 0.6) +
     ggplot2::labs(title = sprintf("Total Ion Chromatogram (MS%d)", ms_level),
                   x = "Retention time (s)", y = "Total ion current") +
-    ggplot2::theme_minimal()
+    theme_bpa_dark()
 }
 
 #' Base peak chromatogram plot (ggplot2), MS1 by default.
@@ -132,10 +156,10 @@ plot_bpc <- function(sp, ms_level = 1L) {
   df <- data.frame(rtime = Spectra::rtime(sub), bpi = bpi)
   df <- df[order(df$rtime), , drop = FALSE]
   ggplot2::ggplot(df, ggplot2::aes(x = .data$rtime, y = .data$bpi)) +
-    ggplot2::geom_line(color = "#B0562B") +
+    ggplot2::geom_line(color = "#fb923c", linewidth = 0.6) +
     ggplot2::labs(title = sprintf("Base Peak Chromatogram (MS%d)", ms_level),
                   x = "Retention time (s)", y = "Base peak intensity") +
-    ggplot2::theme_minimal()
+    theme_bpa_dark()
 }
 
 #' Stick plot of a single spectrum (m/z vs intensity).
@@ -149,8 +173,8 @@ plot_spectrum <- function(sp, index) {
   colnames(df) <- c("mz", "intensity")
   ms_lvl <- Spectra::msLevel(one)
   ggplot2::ggplot(df, ggplot2::aes(x = .data$mz, xend = .data$mz, y = 0, yend = .data$intensity)) +
-    ggplot2::geom_segment(color = "#3B3B3B") +
+    ggplot2::geom_segment(color = "#a78bfa", linewidth = 0.4) +
     ggplot2::labs(title = sprintf("Spectrum #%d (MS%d)", index, ms_lvl),
                   x = "m/z", y = "Intensity") +
-    ggplot2::theme_minimal()
+    theme_bpa_dark()
 }

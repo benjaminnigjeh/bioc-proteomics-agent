@@ -33,7 +33,10 @@ mod_qc_server <- function(id, shared, ctx) {
     shiny::observeEvent(input$run_qc, {
       shiny::req(shared$spectra_id)
       sp <- provenance_get_object(shared$store, shared$spectra_id)
-      shiny::withProgress(message = "Calculating QC metrics...", {
+      shiny::withProgress(
+        message = "Calculating QC metrics...",
+        detail = sprintf("Analyzing %s spectra -- larger real datasets take a few seconds.", length(sp)),
+        {
         t0 <- Sys.time()
         qc <- calculate_qc_metrics(sp)
         shared$qc_metrics <- qc

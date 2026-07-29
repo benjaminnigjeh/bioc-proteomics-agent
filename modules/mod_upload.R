@@ -15,6 +15,11 @@ mod_upload_ui <- function(id) {
         htmltools::tags$p(class = "text-muted small",
           "Supported formats: mzML, mzXML, MGF. Proprietary vendor formats (Thermo RAW, Bruker, ",
           "SCIEX, Waters) are not read directly -- convert to mzML first (e.g. with ProteoWizard msconvert)."),
+        htmltools::tags$p(class = "text-muted small",
+          htmltools::tags$i(class = "fa-solid fa-clock"),
+          " Real LC-MS/MS files take longer than the demo file to import --",
+          " roughly 10-60 seconds for a few hundred to a few thousand spectra,",
+          " depending on file size. This is normal; watch the progress panel."),
         shiny::uiOutput(ns("validation_msg"))
       )
     ),
@@ -45,19 +50,29 @@ mod_upload_server <- function(id, shared, ctx) {
       file.copy(req$datapath, dest, overwrite = TRUE)
       assert_within_dir(dest, shared$session_dir)
 
-      shiny::withProgress(message = "Importing spectra...", {
+      # Real mzML files can take anywhere from a couple seconds to a minute
+      # to parse depending on spectrum count, so this is staged into
+      # distinct steps rather than one static "Importing..." spinner --
+      # it gives the user a sense of progress even though the big mzR
+      # parse itself is a single opaque call we can't subdivide further.
+      shiny::withProgress(message = "Importing spectra...", value = 0, {
         result <- tryCatch({
           t0 <- Sys.time()
+          shiny::incProgress(0.15, detail = "Computing checksum...")
+          file_meta <- inspect_uploaded_file(dest, req$name)
+          shiny::incProgress(0.25, detail = "Parsing spectra (large real files can take up to a minute)...")
           imported <- import_ms_file(dest, req$name)
+          shiny::incProgress(0.5, detail = "Recording provenance...")
           sp_id <- paste0("spectra_", safe_filename(tools::file_path_sans_ext(req$name)))
           provenance_put_object(shared$store, sp_id, imported$spectra)
           shared$spectra_id <- sp_id
           shared$source_filename <- req$name
-          shared$file_meta <- inspect_uploaded_file(dest, req$name)
+          shared$file_meta <- file_meta
           provenance_add_entry(shared$store, agent = "data_intake", objective = "Manual upload",
             plan_step = NA_integer_, tool = "import_ms_file", reason = "User uploaded a file via the Upload panel.",
             arguments = list(file = req$name), r_function = "import_ms_file",
             output_id = sp_id, status = "ok", duration_s = as.numeric(difftime(Sys.time(), t0, units = "secs")))
+          shiny::incProgress(0.1, detail = "Done.")
           list(ok = TRUE)
         }, error = function(e) list(ok = FALSE, message = conditionMessage(e)))
       })

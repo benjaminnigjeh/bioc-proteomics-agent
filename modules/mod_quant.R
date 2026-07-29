@@ -188,12 +188,12 @@ mod_quant_server <- function(id, shared, ctx) {
       p <- pca_res()
       shiny::req(p, isTRUE(p$ok))
       ggplot2::ggplot(p$scores, ggplot2::aes(x = .data$PC1, y = .data$PC2, label = .data$sample_id)) +
-        ggplot2::geom_point(size = 3, color = "#2C6E9A") +
-        ggplot2::geom_text(vjust = -1) +
+        ggplot2::geom_point(size = 3, color = "#22d3ee") +
+        ggplot2::geom_text(vjust = -1, color = "#b8c4d9") +
         ggplot2::labs(title = "PCA of samples",
                       x = sprintf("PC1 (%.1f%%)", 100 * p$variance_explained[1]),
                       y = sprintf("PC2 (%.1f%%)", 100 * (p$variance_explained[2] %||% 0))) +
-        ggplot2::theme_minimal()
+        theme_bpa_dark()
     })
 
     output$comparison_table <- shiny::renderTable({

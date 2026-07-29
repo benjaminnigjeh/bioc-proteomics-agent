@@ -51,6 +51,28 @@ body {
   50% { opacity: 0.55; }
 }
 
+/* Keep the full nav-item row on one line rather than letting the last
+   item(s) wrap onto an orphan second row: tighten link spacing/size and
+   let the row shrink before it wraps. Below the navbar's own collapse
+   breakpoint, Bootstrap's hamburger toggle still takes over as normal. */
+@media (min-width: 992px) {
+  .navbar-nav {
+    flex-wrap: nowrap;
+    column-gap: 0.15rem;
+  }
+
+  .navbar-nav .nav-link {
+    white-space: nowrap;
+    padding-left: 0.55rem;
+    padding-right: 0.55rem;
+    font-size: 0.92rem;
+  }
+
+  .brand-text {
+    font-size: 1.05rem;
+  }
+}
+
 /* -- Cards ------------------------------------------------------------ */
 
 .card {
@@ -181,4 +203,41 @@ table {
 .app-footer .fa-triangle-exclamation {
   margin-right: 0.4rem;
   color: #fbbf24;
+}
+
+/* -- Progress / notifications ---------------------------------------------
+ * Shiny's withProgress() panel and notification toasts ship with their own
+ * bundled CSS (hardcoded light colors), independent of the Bootstrap/bslib
+ * theme -- without this override they'd render as bright white boxes on
+ * this dark theme. Restyled to match the glassy/glow panel language used
+ * elsewhere, with a gradient progress bar for real-data import/QC waits.
+ */
+
+.shiny-notification-panel {
+  width: 340px;
+}
+
+.shiny-notification {
+  background-color: #0d1220;
+  color: #dbe4f0;
+  border: 1px solid var(--bpa-panel-border);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), 0 0 20px rgba(34, 211, 238, 0.08);
+}
+
+.shiny-notification-content-text {
+  color: #dbe4f0;
+}
+
+.shiny-notification-close {
+  color: #94a3b8;
+}
+
+.progress {
+  background-color: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--bpa-panel-border);
+}
+
+.progress-bar {
+  background: linear-gradient(90deg, var(--bpa-glow-cyan), var(--bpa-glow-violet));
 }

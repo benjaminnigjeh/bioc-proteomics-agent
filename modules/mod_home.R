@@ -73,8 +73,11 @@ mod_home_server <- function(id, shared, ctx) {
     })
 
     shiny::observeEvent(input$load_demo, {
-      shiny::withProgress(message = "Loading demo data...", {
-        res <- tryCatch(load_demo_dataset(shared, ctx), error = function(e) list(ok = FALSE, message = conditionMessage(e)))
+      shiny::withProgress(message = "Loading demo data...", value = 0, {
+        res <- tryCatch(
+          load_demo_dataset(shared, ctx, on_stage = function(label) shiny::incProgress(1 / 3, detail = label)),
+          error = function(e) list(ok = FALSE, message = conditionMessage(e))
+        )
         output$demo_status <- shiny::renderUI({
           if (isTRUE(res$ok)) {
             htmltools::tags$p(class = "status-badge-ok", "Demo data loaded: mzML spectra, PSM table, and abundance table are ready. See the other tabs.")
@@ -88,10 +91,13 @@ mod_home_server <- function(id, shared, ctx) {
 }
 
 #' Load bundled demo files (mzML, PSM CSV, abundance CSV) into the shared
-#' session state, exactly as if the user had uploaded them.
+#' session state, exactly as if the user had uploaded them. `on_stage`, if
+#' given, is called with a short label before each of the three imports so
+#' the caller can drive a staged progress indicator.
 #' @export
-load_demo_dataset <- function(shared, ctx) {
+load_demo_dataset <- function(shared, ctx, on_stage = NULL) {
   demo_dir <- "inst/extdata"
+  stage <- function(label) if (!is.null(on_stage)) on_stage(label)
 
   mzml_path <- file.path(demo_dir, "demo_lcmsms.mzML")
   psm_path <- file.path(demo_dir, "demo_psm_table.csv")
@@ -101,6 +107,7 @@ load_demo_dataset <- function(shared, ctx) {
   if (!file.exists(mzml_path)) stop("Demo mzML file not found at ", mzml_path)
 
   # --- Spectra ---
+  stage("Importing mzML spectra...")
   file_id <- register_upload(shared$uploads_env, mzml_path, "demo_lcmsms.mzML")
   t0 <- Sys.time()
   imported <- import_ms_file(mzml_path, "demo_lcmsms.mzML")
@@ -115,6 +122,7 @@ load_demo_dataset <- function(shared, ctx) {
     output_id = sp_id, status = "ok", duration_s = as.numeric(difftime(Sys.time(), t0, units = "secs")))
 
   # --- PSM table ---
+  stage("Importing PSM identification table...")
   if (file.exists(psm_path)) {
     psm_file_id <- register_upload(shared$uploads_env, psm_path, "demo_psm_table.csv")
     df <- import_psm_table(psm_path)
@@ -132,6 +140,7 @@ load_demo_dataset <- function(shared, ctx) {
   }
 
   # --- Quant table ---
+  stage("Importing abundance table...")
   if (file.exists(quant_path)) {
     quant_file_id <- register_upload(shared$uploads_env, quant_path, "demo_abundance_table.csv")
     df <- import_quant_table(quant_path)
