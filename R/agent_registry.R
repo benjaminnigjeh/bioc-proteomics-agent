@@ -495,6 +495,71 @@ register_tool(list(
   expected_artifacts = character(0)
 ))
 
+register_tool(list(
+  name = "import_fasta_database",
+  description = "Import and validate a protein FASTA database for in-silico digestion.",
+  input_schema = list(
+    type = "object",
+    properties = list(file_id = list(type = "string")),
+    required = list("file_id")
+  ),
+  validate = function(args, ctx) list(ok = TRUE, errors = character(0), args = args),
+  execute = function(args, ctx) {
+    rec <- ctx$get_upload(args$file_id)
+    if (is.null(rec)) stop("Unknown file_id.")
+    aa <- import_fasta_database(rec$path)
+    val <- validate_fasta_database(aa)
+    if (!val$ok) stop(paste(val$errors, collapse = " "))
+    fasta_id <- .new_id("fasta")
+    provenance_put_object(ctx$store, fasta_id, aa)
+    list(output = list(fasta_id = fasta_id, n_proteins = val$n_proteins),
+         output_id = fasta_id, artifacts = character(0), warnings = character(0))
+  },
+  output_schema = list(type = "object"),
+  timeout_s = 30,
+  expected_artifacts = character(0)
+))
+
+register_tool(list(
+  name = "run_fasta_search",
+  description = "Run an in-silico tryptic-digestion database search (precursor mass + b/y fragment matching, no FDR control) against loaded spectra, producing a PSM table.",
+  input_schema = list(
+    type = "object",
+    properties = list(
+      fasta_id = list(type = "string"),
+      spectra_id = list(type = "string"),
+      missed_cleavages = list(type = "integer", minimum = 0, maximum = 2),
+      min_length = list(type = "integer", minimum = 4, maximum = 60),
+      max_length = list(type = "integer", minimum = 4, maximum = 60),
+      variable_ptms = list(type = "array", items = list(type = "string")),
+      precursor_ppm = list(type = "number", minimum = 1, maximum = 50)
+    ),
+    required = list("fasta_id", "spectra_id")
+  ),
+  validate = function(args, ctx) {
+    errors <- character(0)
+    valid_ptms <- names(VARIABLE_PTMS)
+    bad <- setdiff(unlist(args$variable_ptms), valid_ptms)
+    if (length(bad) > 0) errors <- c(errors, sprintf("Unknown variable_ptms: %s.", paste(bad, collapse = ", ")))
+    list(ok = length(errors) == 0, errors = errors, args = args)
+  },
+  execute = function(args, ctx) {
+    aa <- .resolve_object(ctx, args$fasta_id, "AAStringSet")
+    sp <- .resolve_object(ctx, args$spectra_id, "Spectra")
+    res <- run_fasta_search(aa, sp,
+      missed_cleavages = 0:(args$missed_cleavages %||% 1L),
+      min_length = args$min_length %||% 6L, max_length = args$max_length %||% 40L,
+      variable_ptms = unlist(args$variable_ptms), precursor_ppm = args$precursor_ppm %||% 10)
+    psm_id <- .new_id("psm")
+    provenance_put_object(ctx$store, psm_id, res$psm_df)
+    list(output = c(list(psm_id = psm_id), res$summary),
+         output_id = psm_id, artifacts = character(0), warnings = character(0))
+  },
+  output_schema = list(type = "object"),
+  timeout_s = 120,
+  expected_artifacts = character(0)
+))
+
 # ---------------------------------------------------------------------------
 # Quantification tools
 # ---------------------------------------------------------------------------

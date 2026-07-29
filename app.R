@@ -5,7 +5,7 @@
 # (one Shiny module per UI section), then assembles a bslib navbar app.
 
 # Bumped alongside each `git tag vX.Y.Z` release (see .github/workflows/release.yml).
-APP_VERSION <- "1.0.4"
+APP_VERSION <- "1.0.5"
 
 suppressWarnings({
   r_files <- list.files("R", pattern = "\\.R$", full.names = TRUE)
@@ -99,6 +99,7 @@ server <- function(input, output, session) {
     processing_comparison = NULL,
     psm_id = NULL,
     psm_column_map = NULL,
+    fasta_id = NULL,
     ident_summary = NULL,
     quant_table_id = NULL,
     quant_id_col = NULL,

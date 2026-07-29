@@ -169,6 +169,12 @@ mod_agent_server <- function(id, shared, ctx) {
       if (!is.null(result$results[["import_sample_metadata"]]$metadata_id)) {
         shared$quant_metadata_id <- result$results[["import_sample_metadata"]]$metadata_id
       }
+      if (!is.null(result$results[["import_fasta_database"]]$fasta_id)) {
+        shared$fasta_id <- result$results[["import_fasta_database"]]$fasta_id
+      }
+      if (!is.null(result$results[["run_fasta_search"]]$psm_id)) {
+        shared$psm_id <- result$results[["run_fasta_search"]]$psm_id
+      }
       if (!is.null(result$results[["run_msstats_comparison"]])) {
         rm_ <- result$results[["run_msstats_comparison"]]
         shared$msstats_summary <- list(
@@ -223,6 +229,7 @@ mod_agent_server <- function(id, shared, ctx) {
     has_quant = !is.null(shared$quant_table_id), quant_table_id = shared$quant_table_id,
     quant_id_col = shared$quant_id_col, quant_sample_cols = shared$quant_sample_cols,
     has_sample_metadata = !is.null(shared$quant_metadata_id), quant_metadata_id = shared$quant_metadata_id,
-    qfeatures_id = shared$qfeatures_id, quant_assay_name = shared$quant_assay_name
+    qfeatures_id = shared$qfeatures_id, quant_assay_name = shared$quant_assay_name,
+    has_fasta = !is.null(shared$fasta_id), fasta_id = shared$fasta_id
   )
 }

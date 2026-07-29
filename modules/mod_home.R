@@ -139,6 +139,24 @@ load_demo_dataset <- function(shared, ctx, on_stage = NULL) {
     }
   }
 
+  # --- FASTA database ---
+  stage("Importing demo protein FASTA...")
+  fasta_path <- file.path(demo_dir, "demo_proteins.fasta")
+  if (file.exists(fasta_path)) {
+    fasta_file_id <- register_upload(shared$uploads_env, fasta_path, "demo_proteins.fasta")
+    aa <- import_fasta_database(fasta_path)
+    val <- validate_fasta_database(aa)
+    if (val$ok) {
+      fasta_id <- "fasta_demo"
+      provenance_put_object(shared$store, fasta_id, aa)
+      shared$fasta_id <- fasta_id
+      provenance_add_entry(shared$store, agent = "identification", objective = "Load demo data",
+        plan_step = NA_integer_, tool = "import_fasta_database", reason = "User requested demo data.",
+        arguments = list(file = "demo_proteins.fasta"), r_function = "import_fasta_database",
+        output_id = fasta_id, status = "ok")
+    }
+  }
+
   # --- Quant table ---
   stage("Importing abundance table...")
   if (file.exists(quant_path)) {

@@ -6,7 +6,8 @@ test_that("all expected tools are registered", {
     "import_psm_table", "filter_psms", "summarize_identifications",
     "import_quant_table", "build_qfeatures", "normalize_quantification", "aggregate_to_proteins",
     "run_exploratory_analysis", "plot_quantification_heatmap", "import_sample_metadata",
-    "run_msstats_comparison", "generate_report"
+    "run_msstats_comparison", "generate_report",
+    "import_fasta_database", "run_fasta_search"
   )
   expect_true(all(expected %in% list_tool_names()))
 })
@@ -111,4 +112,57 @@ test_that("run_msstats_comparison tool runs an end-to-end comparison and stores 
   expect_equal(res$output$n_proteins, 2)
   stored <- provenance_get_object(ctx$store, res$output_id)
   expect_true(all(c("Protein", "log2FC", "adj.pvalue") %in% colnames(stored)))
+})
+
+test_that("import_fasta_database tool validates and stores a FASTA", {
+  skip_if_not_installed("Biostrings")
+  store <- new_provenance_store()
+  dir <- tempfile("bpa_test_")
+  dir.create(dir)
+  uploads <- new.env()
+  fasta_path <- file.path(dir, "demo.fasta")
+  writeLines(c(">P1", "MSDKVLDALQAIKR"), fasta_path)
+  file_id <- register_upload(uploads, fasta_path, "demo.fasta")
+  ctx <- new_session_ctx(store, dir, uploads, report_params_builder = function(objective) list(objective = objective))
+
+  tool <- get_tool("import_fasta_database")
+  res <- guardrail_execute_call(tool, list(file_id = file_id), ctx)
+  expect_true(res$ok)
+  expect_equal(res$output$n_proteins, 1)
+  stored <- provenance_get_object(store, res$output_id)
+  expect_s4_class(stored, "AAStringSet")
+})
+
+test_that("run_fasta_search tool runs end-to-end and stores a canonical PSM table", {
+  skip_if_not_installed("Biostrings")
+  skip_if_not_installed("cleaver")
+  skip_if_not_installed("PSMatch")
+  ctx <- make_test_ctx()
+
+  target <- "VLDALQAIK"
+  aa <- Biostrings::AAStringSet(c(DEMO = "MSDKVLDALQAIKR"))
+  neutral_mass <- peptide_neutral_mass(target)
+  charge <- 2L
+  precursor_mz <- (neutral_mass + charge * PROTON_MASS) / charge
+  frags <- PSMatch::calculateFragments(target, type = c("b", "y"), z = 1,
+                                        modifications = FIXED_MODS_DEFAULT, verbose = FALSE)
+  spd <- S4Vectors::DataFrame(
+    msLevel = c(1L, 2L), rtime = c(1.0, 1.5), polarity = c(1L, 1L),
+    precursorMz = c(NA_real_, precursor_mz), precursorCharge = c(NA_integer_, charge),
+    centroided = TRUE
+  )
+  spd$mz <- list(c(100.0, 200.0), sort(frags$mz))
+  spd$intensity <- list(c(1000, 2000), rep(1e5, length(frags$mz)))
+  sp <- Spectra::Spectra(spd)
+
+  provenance_put_object(ctx$store, "fasta1", aa)
+  provenance_put_object(ctx$store, "sp1", sp)
+
+  tool <- get_tool("run_fasta_search")
+  args <- list(fasta_id = "fasta1", spectra_id = "sp1", missed_cleavages = 0L, min_length = 4L, max_length = 40L)
+  res <- guardrail_execute_call(tool, args, ctx)
+  expect_true(res$ok)
+  expect_true(res$output$n_psm_matches >= 1)
+  stored <- provenance_get_object(ctx$store, res$output_id)
+  expect_true(validate_psm_table(stored)$ok)
 })

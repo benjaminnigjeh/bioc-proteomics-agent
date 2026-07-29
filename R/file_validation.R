@@ -7,6 +7,7 @@
 
 ALLOWED_MS_EXTENSIONS <- c("mzml", "mzxml", "mgf")
 ALLOWED_TABLE_EXTENSIONS <- c("csv", "tsv", "txt")
+ALLOWED_FASTA_EXTENSIONS <- c("fasta", "fa", "fas")
 
 #' Extract a lowercased, dot-free file extension.
 #' @export
@@ -101,6 +102,32 @@ validate_table_upload <- function(filename, filesize, max_upload_mb = 500) {
     return(list(ok = FALSE,
                 reason = sprintf("Unsupported table extension '.%s'. Allowed: %s.",
                                   ext, paste(ALLOWED_TABLE_EXTENSIONS, collapse = ", ")),
+                extension = ext, safe_name = NA_character_))
+  }
+  max_bytes <- max_upload_mb * 1024 * 1024
+  if (is.na(filesize) || filesize <= 0) {
+    return(list(ok = FALSE, reason = "Empty or unreadable upload.", extension = ext, safe_name = NA_character_))
+  }
+  if (filesize > max_bytes) {
+    return(list(ok = FALSE,
+                reason = sprintf("File exceeds the maximum upload size of %.0f MB.", max_upload_mb),
+                extension = ext, safe_name = NA_character_))
+  }
+  safe_name <- tryCatch(safe_filename(filename), error = function(e) NA_character_)
+  if (is.na(safe_name)) {
+    return(list(ok = FALSE, reason = "Filename could not be safely sanitized.", extension = ext, safe_name = NA_character_))
+  }
+  list(ok = TRUE, reason = "", extension = ext, safe_name = safe_name)
+}
+
+#' Validate an uploaded FASTA protein database (fasta/fa/fas only).
+#' @export
+validate_fasta_upload <- function(filename, filesize, max_upload_mb = 500) {
+  ext <- file_extension(filename)
+  if (!ext %in% ALLOWED_FASTA_EXTENSIONS) {
+    return(list(ok = FALSE,
+                reason = sprintf("Unsupported FASTA extension '.%s'. Allowed: %s.",
+                                  ext, paste(ALLOWED_FASTA_EXTENSIONS, collapse = ", ")),
                 extension = ext, safe_name = NA_character_))
   }
   max_bytes <- max_upload_mb * 1024 * 1024

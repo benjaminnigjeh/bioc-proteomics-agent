@@ -49,6 +49,24 @@ test_that("path traversal outside the session directory is detected", {
   expect_error(assert_within_dir(outside, base))
 })
 
+test_that("validate_fasta_upload accepts allowed extensions and rejects others", {
+  ok <- validate_fasta_upload("demo.fasta", filesize = 1000, max_upload_mb = 500)
+  expect_true(ok$ok)
+  ok2 <- validate_fasta_upload("demo.fa", filesize = 1000, max_upload_mb = 500)
+  expect_true(ok2$ok)
+
+  bad <- validate_fasta_upload("demo.csv", filesize = 1000, max_upload_mb = 500)
+  expect_false(bad$ok)
+  expect_match(bad$reason, "Unsupported")
+
+  too_big <- validate_fasta_upload("demo.fasta", filesize = 600 * 1024 * 1024, max_upload_mb = 500)
+  expect_false(too_big$ok)
+  expect_match(too_big$reason, "exceeds")
+
+  empty <- validate_fasta_upload("demo.fasta", filesize = 0, max_upload_mb = 500)
+  expect_false(empty$ok)
+})
+
 test_that("file checksums are deterministic", {
   f <- tempfile()
   writeLines("hello world", f)

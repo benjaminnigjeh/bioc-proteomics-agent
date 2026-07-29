@@ -213,6 +213,7 @@ agent_execute_plan <- function(plan, objective, mode, cfg, ctx, agent_descriptio
     filter_spectra = "spectrum_processing", normalize_spectra = "spectrum_processing",
     retain_top_peaks = "spectrum_processing", compare_spectra = "spectrum_processing",
     import_psm_table = "identification", filter_psms = "identification", summarize_identifications = "identification",
+    import_fasta_database = "identification", run_fasta_search = "identification",
     import_quant_table = "quantification", build_qfeatures = "quantification",
     normalize_quantification = "quantification", aggregate_to_proteins = "quantification",
     run_exploratory_analysis = "quantification", plot_quantification_heatmap = "quantification",
@@ -223,7 +224,7 @@ agent_execute_plan <- function(plan, objective, mode, cfg, ctx, agent_descriptio
 }
 
 .first_id_arg <- function(args) {
-  id_fields <- c("spectra_id", "spectra_id_before", "psm_id", "table_id", "qfeatures_id", "file_id")
+  id_fields <- c("spectra_id", "spectra_id_before", "psm_id", "table_id", "qfeatures_id", "fasta_id", "file_id")
   for (f in id_fields) if (!is.null(args[[f]])) return(as.character(args[[f]]))
   NA_character_
 }

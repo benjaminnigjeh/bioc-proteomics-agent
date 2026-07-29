@@ -112,7 +112,7 @@ collect_session_provenance <- function() {
 
   pkgs <- c("Spectra", "MsExperiment", "MsCoreUtils", "mzR", "ProtGenerics",
             "QFeatures", "SummarizedExperiment", "MultiAssayExperiment", "BiocParallel",
-            "MsQuality", "MSstats", "ComplexHeatmap")
+            "MsQuality", "MSstats", "ComplexHeatmap", "PSMatch", "cleaver", "Biostrings")
   pkg_versions <- lapply(pkgs, function(p) {
     tryCatch(as.character(utils::packageVersion(p)), error = function(e) "not installed")
   })
