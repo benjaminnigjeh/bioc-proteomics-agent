@@ -8,7 +8,7 @@ mod_home_ui <- function(id) {
   bslib::layout_columns(
     col_widths = c(7, 5),
     bslib::card(
-      bslib::card_header("Bioconductor Proteomics Agent"),
+      bslib::card_header(htmltools::tags$span(htmltools::tags$i(class = "fa-solid fa-dna me-2"), "Bioconductor Proteomics Agent")),
       bslib::card_body(
         htmltools::tags$p(
           "A multi-agent, Claude-powered assistant for opening, inspecting, processing, ",
@@ -17,20 +17,21 @@ mod_home_ui <- function(id) {
           "Claude only plans and selects from a restricted set of registered tools."
         ),
         htmltools::tags$ul(
-          htmltools::tags$li("Spectra / MsExperiment import from mzML, mzXML, and MGF"),
-          htmltools::tags$li("Quality control, spectrum processing, identification, and quantification"),
-          htmltools::tags$li("A bounded, auditable multi-agent tool-use loop with a full trace"),
-          htmltools::tags$li("Reproducible HTML reports with provenance")
+          class = "feature-list",
+          htmltools::tags$li(htmltools::tags$i(class = "fa-solid fa-wave-square"), "Spectra / MsExperiment import from mzML, mzXML, and MGF"),
+          htmltools::tags$li(htmltools::tags$i(class = "fa-solid fa-vial-circle-check"), "Quality control, spectrum processing, identification, and quantification"),
+          htmltools::tags$li(htmltools::tags$i(class = "fa-solid fa-diagram-project"), "A bounded, auditable multi-agent tool-use loop with a full trace"),
+          htmltools::tags$li(htmltools::tags$i(class = "fa-solid fa-file-circle-check"), "Reproducible HTML reports with provenance")
         ),
-        shiny::actionButton(ns("load_demo"), "Load Demo Data", class = "btn-primary"),
+        shiny::actionButton(ns("load_demo"), htmltools::tagList(htmltools::tags$i(class = "fa-solid fa-flask"), " Load Demo Data"), class = "btn-primary"),
         shiny::uiOutput(ns("demo_status"))
       )
     ),
     bslib::card(
-      bslib::card_header("System Status"),
+      bslib::card_header(htmltools::tags$span(htmltools::tags$i(class = "fa-solid fa-satellite-dish me-2"), "System Status")),
       bslib::card_body(
         shiny::uiOutput(ns("status_table")),
-        shiny::actionButton(ns("check_connection"), "Check Claude Connection", class = "btn-outline-secondary btn-sm mt-2")
+        shiny::actionButton(ns("check_connection"), htmltools::tagList(htmltools::tags$i(class = "fa-solid fa-plug-circle-check"), " Check Claude Connection"), class = "btn-outline-secondary btn-sm mt-2")
       )
     )
   )

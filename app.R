@@ -16,15 +16,44 @@ assert_registry_is_safe()
 
 cfg <- validate_app_config(get_app_config())
 
+# A dark, "AI operations console" theme: near-black base, cyan/violet
+# accent pair, a geometric display face for headings and a monospace face
+# for code/trace/log-style content -- layered with www/custom.css for the
+# glow, gradient, and grid-pattern details bslib's Sass variables can't
+# express directly.
+app_theme <- bslib::bs_theme(
+  version = 5,
+  bg = "#090c14",
+  fg = "#dbe4f0",
+  primary = "#22d3ee",
+  secondary = "#8b5cf6",
+  success = "#34d399",
+  info = "#38bdf8",
+  warning = "#fbbf24",
+  danger = "#f87171",
+  base_font = bslib::font_google("Inter"),
+  heading_font = bslib::font_google("Space Grotesk"),
+  code_font = bslib::font_google("JetBrains Mono"),
+  "navbar-bg" = "#0b0f1c",
+  "body-secondary-bg" = "#0f1422",
+  "border-radius" = "0.9rem",
+  "border-radius-lg" = "1.1rem"
+)
+
 ui <- bslib::page_navbar(
-  title = "Bioconductor Proteomics Agent",
+  title = htmltools::tagList(
+    htmltools::tags$span(class = "brand-mark", htmltools::tags$i(class = "fa-solid fa-microchip")),
+    htmltools::tags$span(class = "brand-text", "Bioconductor Proteomics Agent")
+  ),
   id = "main_nav",
-  theme = bslib::bs_theme(version = 5, bootswatch = "flatly"),
+  theme = app_theme,
   header = htmltools::tags$head(
-    htmltools::tags$link(rel = "stylesheet", type = "text/css", href = "custom.css")
+    htmltools::tags$link(rel = "stylesheet", type = "text/css", href = "custom.css"),
+    htmltools::tags$meta(name = "color-scheme", content = "dark")
   ),
   footer = htmltools::tags$div(
     class = "app-footer",
+    htmltools::tags$i(class = "fa-solid fa-triangle-exclamation"),
     htmltools::tags$strong("Research demonstration only. Not intended for clinical diagnosis or clinical decision-making.")
   ),
   bslib::nav_panel("Home", mod_home_ui("home")),
