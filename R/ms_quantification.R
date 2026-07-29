@@ -240,7 +240,6 @@ validate_sample_metadata <- function(df) {
 #' @param group_col character name of the grouping column in sample_metadata
 #' @export
 run_msstats_comparison <- function(df, protein_col, peptide_col, sample_cols, sample_metadata, group_col) {
-  if (!requireNamespace("MSstats", quietly = TRUE)) stop("MSstats package required.")
   if (!group_col %in% colnames(sample_metadata)) {
     return(list(ok = FALSE, reason = sprintf("Group column '%s' not found in sample metadata.", group_col)))
   }
@@ -255,6 +254,7 @@ run_msstats_comparison <- function(df, protein_col, peptide_col, sample_cols, sa
   if (any(table(group) < 2)) {
     return(list(ok = FALSE, reason = "Each group needs at least 2 replicates for a valid comparison."))
   }
+  if (!requireNamespace("MSstats", quietly = TRUE)) stop("MSstats package required.")
 
   long <- do.call(rbind, lapply(seq_along(sample_cols), function(i) {
     sc <- sample_cols[i]
