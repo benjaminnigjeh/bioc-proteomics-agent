@@ -46,6 +46,19 @@ body {
   letter-spacing: 0.01em;
 }
 
+.brand-version {
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid rgba(139, 92, 246, 0.45);
+  background: rgba(139, 92, 246, 0.12);
+  color: var(--bpa-glow-violet, #8b5cf6);
+  font-family: var(--bs-code-font, "JetBrains Mono", monospace);
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+}
+
 @keyframes bpa-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.55; }

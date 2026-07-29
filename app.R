@@ -4,6 +4,9 @@
 # Sources R/ (deterministic science + agent infrastructure) and modules/
 # (one Shiny module per UI section), then assembles a bslib navbar app.
 
+# Bumped alongside each `git tag vX.Y.Z` release (see .github/workflows/release.yml).
+APP_VERSION <- "1.0.4"
+
 suppressWarnings({
   r_files <- list.files("R", pattern = "\\.R$", full.names = TRUE)
   for (f in r_files) source(f, local = FALSE)
@@ -49,7 +52,8 @@ app_theme <- bslib::bs_theme(
 ui <- bslib::page_navbar(
   title = htmltools::tagList(
     htmltools::tags$span(class = "brand-mark", htmltools::tags$i(class = "fa-solid fa-microchip")),
-    htmltools::tags$span(class = "brand-text", "Bioconductor Proteomics Agent")
+    htmltools::tags$span(class = "brand-text", "Bioconductor Proteomics Agent"),
+    htmltools::tags$span(class = "brand-version", paste0("v", APP_VERSION))
   ),
   id = "main_nav",
   theme = app_theme,
